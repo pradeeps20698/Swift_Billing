@@ -1,8 +1,13 @@
 import streamlit as st
 import pandas as pd
 import psycopg2
+import os
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Auto-refresh every 1 hour (3600000 milliseconds)
 refresh_count = st_autorefresh(interval=3600000, limit=None, key="billing_auto_refresh")
@@ -168,11 +173,11 @@ st.markdown("""
 @st.cache_resource
 def get_connection():
     return psycopg2.connect(
-        host="swift.cj8i0e86a294.ap-south-1.rds.amazonaws.com",
-        user="pradeep",
-        password="Amit__0411",
-        database="postgres",
-        port=5432
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME"),
+        port=os.getenv("DB_PORT", 5432)
     )
 
 # Load data function
