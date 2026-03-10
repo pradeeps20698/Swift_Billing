@@ -459,7 +459,7 @@ with col2:
 with col3:
     st.markdown(f"""
     <div class="metric-card metric-card-green">
-        <div class="metric-title">Basic Freight</div>
+        <div class="metric-title">Billed Amount (Basic Freight)</div>
         <div class="metric-value">{format_currency(total_freight)}</div>
         <div class="metric-breakdown">
             <div class="breakdown-item">
@@ -605,7 +605,7 @@ with tab1:
                 <th style='padding: 12px 15px; text-align: left; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Billing Party</th>
                 <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>No of Bills</th>
                 <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Units</th>
-                <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Basic Freight</th>
+                <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Billed Amount</th>
             </tr>
         </thead>
         <tbody>
@@ -648,16 +648,16 @@ with tab2:
 
     if len(filtered_df) > 0:
         branch_summary = filtered_df.groupby('branch').agg({
-            'cn_no': 'count',
+            'bill_no': 'nunique',
             'qty': 'sum',
             'basic_freight': 'sum'
         }).reset_index()
 
-        branch_summary.columns = ['Branch', 'No of Bills', 'Units', 'Basic Freight']
-        branch_summary = branch_summary.sort_values('Basic Freight', ascending=False)
+        branch_summary.columns = ['Branch', 'No of Bills', 'Units', 'Billed Amount']
+        branch_summary = branch_summary.sort_values('Billed Amount', ascending=False)
 
         branch_display = branch_summary.copy()
-        branch_display['Basic Freight'] = branch_display['Basic Freight'].apply(lambda x: f"₹{x:,.0f}")
+        branch_display['Billed Amount'] = branch_display['Billed Amount'].apply(lambda x: f"₹{x:,.0f}")
         branch_display['Units'] = branch_display['Units'].astype(int)
 
         st.dataframe(
@@ -680,7 +680,7 @@ with tab3:
         cn_details['cn_date'] = cn_details['cn_date'].dt.strftime('%d-%m-%Y')
         cn_details.columns = ['CN No', 'Date', 'Branch', 'Billing Party', 'Origin',
                               'Destination', 'Vehicle', 'Type', 'Qty',
-                              'Freight', 'POD Status']
+                              'Billed Amount', 'POD Status']
 
         st.dataframe(
             cn_details,
@@ -803,19 +803,19 @@ with tab5:
     st.markdown("<div class='section-header'>Monthly Billing Trend</div>", unsafe_allow_html=True)
 
     monthly_trend = df.groupby('month').agg({
-        'cn_no': 'count',
+        'bill_no': 'nunique',
         'qty': 'sum',
         'basic_freight': 'sum'
     }).reset_index()
 
     monthly_trend['month'] = monthly_trend['month'].astype(str)
-    monthly_trend.columns = ['Month', 'CNs', 'Units', 'Freight']
+    monthly_trend.columns = ['Month', 'No of Bills', 'Units', 'Billed Amount']
 
-    chart_data = monthly_trend.set_index('Month')[['Freight']].tail(12)
+    chart_data = monthly_trend.set_index('Month')[['Billed Amount']].tail(12)
     st.bar_chart(chart_data)
 
     monthly_display = monthly_trend.tail(12).copy()
-    monthly_display['Freight'] = monthly_display['Freight'].apply(lambda x: f"₹{x:,.0f}")
+    monthly_display['Billed Amount'] = monthly_display['Billed Amount'].apply(lambda x: f"₹{x:,.0f}")
 
     st.dataframe(
         monthly_display,
