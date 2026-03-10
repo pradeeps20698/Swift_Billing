@@ -404,10 +404,10 @@ if st.session_state.selected_month:
     month_display = datetime.strptime(st.session_state.selected_month, "%Y-%m").strftime("%B %Y")
     st.markdown(f"<h3 style='color: #94a3b8;'>Billing Summary ({month_display})</h3>", unsafe_allow_html=True)
 
-# Calculate metrics
-total_cns = len(filtered_df)
-own_cns = len(filtered_df[filtered_df['is_own'] == True])
-hire_cns = len(filtered_df[filtered_df['is_own'] == False])
+# Calculate metrics - Count unique bill numbers
+total_bills = filtered_df['bill_no'].dropna().nunique()
+own_bills = filtered_df[filtered_df['is_own'] == True]['bill_no'].dropna().nunique()
+hire_bills = filtered_df[filtered_df['is_own'] == False]['bill_no'].dropna().nunique()
 
 total_freight = filtered_df['basic_freight'].sum()
 own_freight = filtered_df[filtered_df['is_own'] == True]['basic_freight'].sum()
@@ -423,16 +423,16 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="metric-title">Total CNs</div>
-        <div class="metric-value">{total_cns:,}</div>
+        <div class="metric-title">No of Bills</div>
+        <div class="metric-value">{total_bills:,}</div>
         <div class="metric-breakdown">
             <div class="breakdown-item">
                 <div class="breakdown-label">Own</div>
-                <div class="breakdown-value">{own_cns:,}</div>
+                <div class="breakdown-value">{own_bills:,}</div>
             </div>
             <div class="breakdown-item">
                 <div class="breakdown-label">Hire</div>
-                <div class="breakdown-value breakdown-value-orange">{hire_cns:,}</div>
+                <div class="breakdown-value breakdown-value-orange">{hire_bills:,}</div>
             </div>
         </div>
     </div>
@@ -509,13 +509,13 @@ with tab1:
             else:
                 return 'Others'
 
-        # Get client summary
+        # Get client summary - count unique bill numbers
         client_summary = filtered_df.groupby('billing_party').agg({
-            'cn_no': 'count',
+            'bill_no': 'nunique',
             'qty': 'sum',
             'basic_freight': 'sum'
         }).reset_index()
-        client_summary.columns = ['Billing Party', 'CN Count', 'Units', 'Basic Freight']
+        client_summary.columns = ['Billing Party', 'No of Bills', 'Units', 'Basic Freight']
 
         # Add parent group
         client_summary['Group'] = client_summary['Billing Party'].apply(get_parent_group)
@@ -534,7 +534,7 @@ with tab1:
                 for _, row in group_data.iterrows():
                     grouped_rows.append({
                         'Billing Party': row['Billing Party'],
-                        'CN Count': int(row['CN Count']),
+                        'No of Bills': int(row['No of Bills']),
                         'Units': int(row['Units']),
                         'Basic Freight': row['Basic Freight'],
                         'is_total': False
@@ -542,7 +542,7 @@ with tab1:
                 # Add group subtotal
                 grouped_rows.append({
                     'Billing Party': f'{group} - Total',
-                    'CN Count': int(group_data['CN Count'].sum()),
+                    'No of Bills': int(group_data['No of Bills'].sum()),
                     'Units': int(group_data['Units'].sum()),
                     'Basic Freight': group_data['Basic Freight'].sum(),
                     'is_total': True
@@ -552,7 +552,7 @@ with tab1:
                 row = group_data.iloc[0]
                 single_parties.append({
                     'Billing Party': row['Billing Party'],
-                    'CN Count': int(row['CN Count']),
+                    'No of Bills': int(row['No of Bills']),
                     'Units': int(row['Units']),
                     'Basic Freight': row['Basic Freight'],
                     'is_total': False
@@ -563,7 +563,7 @@ with tab1:
         for _, row in others_data.iterrows():
             single_parties.append({
                 'Billing Party': row['Billing Party'],
-                'CN Count': int(row['CN Count']),
+                'No of Bills': int(row['No of Bills']),
                 'Units': int(row['Units']),
                 'Basic Freight': row['Basic Freight'],
                 'is_total': False
@@ -576,7 +576,7 @@ with tab1:
         # Add Grand Total
         grouped_rows.append({
             'Billing Party': 'Grand Total',
-            'CN Count': int(client_summary['CN Count'].sum()),
+            'No of Bills': int(client_summary['No of Bills'].sum()),
             'Units': int(client_summary['Units'].sum()),
             'Basic Freight': client_summary['Basic Freight'].sum(),
             'is_total': True
@@ -593,7 +593,7 @@ with tab1:
 
         # Prepare display columns
         display_df['Basic Freight'] = display_df['Basic Freight'].apply(lambda x: f"₹{x:,.0f}")
-        styled_df = display_df[['Billing Party', 'CN Count', 'Units', 'Basic Freight']].copy()
+        styled_df = display_df[['Billing Party', 'No of Bills', 'Units', 'Basic Freight']].copy()
         styled_df['_is_total'] = display_df['is_total']
 
         # Build HTML table with improved styling
@@ -603,7 +603,7 @@ with tab1:
         <thead>
             <tr style='background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); position: sticky; top: 0;'>
                 <th style='padding: 12px 15px; text-align: left; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Billing Party</th>
-                <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>CN Count</th>
+                <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>No of Bills</th>
                 <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Units</th>
                 <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Basic Freight</th>
             </tr>
@@ -632,7 +632,7 @@ with tab1:
 
             html_table += f"<tr style='{style}'>"
             html_table += f"<td style='padding: 10px 15px; border-bottom: 1px solid #2d4a6f; {border_style}'>{row['Billing Party']}</td>"
-            html_table += f"<td style='padding: 10px 15px; text-align: right; border-bottom: 1px solid #2d4a6f; {border_style}'>{row['CN Count']:,}</td>"
+            html_table += f"<td style='padding: 10px 15px; text-align: right; border-bottom: 1px solid #2d4a6f; {border_style}'>{row['No of Bills']:,}</td>"
             html_table += f"<td style='padding: 10px 15px; text-align: right; border-bottom: 1px solid #2d4a6f; {border_style}'>{row['Units']:,}</td>"
             html_table += f"<td style='padding: 10px 15px; text-align: right; border-bottom: 1px solid #2d4a6f; {border_style}'>{row['Basic Freight']}</td>"
             html_table += "</tr>"
@@ -653,7 +653,7 @@ with tab2:
             'basic_freight': 'sum'
         }).reset_index()
 
-        branch_summary.columns = ['Branch', 'CN Count', 'Units', 'Basic Freight']
+        branch_summary.columns = ['Branch', 'No of Bills', 'Units', 'Basic Freight']
         branch_summary = branch_summary.sort_values('Basic Freight', ascending=False)
 
         branch_display = branch_summary.copy()
