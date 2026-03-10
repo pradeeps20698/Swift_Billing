@@ -522,7 +522,8 @@ with tab1:
 
         # Build grouped table with subtotals
         grouped_rows = []
-        group_order = ['Honda', 'M & M', 'Toyota', 'Glovis', 'Tata', 'Skoda VW', 'John Deere', 'Others']
+        # First: Groups with multiple parties (show subtotals)
+        group_order = ['Honda', 'M & M', 'Toyota', 'Glovis', 'Tata', 'Skoda VW', 'John Deere']
 
         for group in group_order:
             group_data = client_summary[client_summary['Group'] == group].sort_values('Basic Freight', ascending=False)
@@ -546,6 +547,17 @@ with tab1:
                         'Basic Freight': group_data['Basic Freight'].sum(),
                         'is_total': True
                     })
+
+        # Second: Single parties (Others) - no subtotal, just list them
+        others_data = client_summary[client_summary['Group'] == 'Others'].sort_values('Basic Freight', ascending=False)
+        for _, row in others_data.iterrows():
+            grouped_rows.append({
+                'Billing Party': row['Billing Party'],
+                'CN Count': int(row['CN Count']),
+                'Units': int(row['Units']),
+                'Basic Freight': row['Basic Freight'],
+                'is_total': False
+            })
 
         # Add Grand Total
         grouped_rows.append({
