@@ -522,13 +522,15 @@ with tab1:
 
         # Build grouped table with subtotals
         grouped_rows = []
+        single_parties = []  # Collect single parties to show at bottom
+
         # First: Groups with multiple parties (show subtotals)
         group_order = ['Honda', 'M & M', 'Toyota', 'Glovis', 'Tata', 'Skoda VW', 'John Deere']
 
         for group in group_order:
             group_data = client_summary[client_summary['Group'] == group].sort_values('Basic Freight', ascending=False)
-            if len(group_data) > 0:
-                # Add individual rows
+            if len(group_data) > 1:
+                # Multiple parties in group - show with subtotal
                 for _, row in group_data.iterrows():
                     grouped_rows.append({
                         'Billing Party': row['Billing Party'],
@@ -537,27 +539,39 @@ with tab1:
                         'Basic Freight': row['Basic Freight'],
                         'is_total': False
                     })
+                # Add group subtotal
+                grouped_rows.append({
+                    'Billing Party': f'{group} - Total',
+                    'CN Count': int(group_data['CN Count'].sum()),
+                    'Units': int(group_data['Units'].sum()),
+                    'Basic Freight': group_data['Basic Freight'].sum(),
+                    'is_total': True
+                })
+            elif len(group_data) == 1:
+                # Single party in group - add to single parties list
+                row = group_data.iloc[0]
+                single_parties.append({
+                    'Billing Party': row['Billing Party'],
+                    'CN Count': int(row['CN Count']),
+                    'Units': int(row['Units']),
+                    'Basic Freight': row['Basic Freight'],
+                    'is_total': False
+                })
 
-                # Add group subtotal if more than 1 party in group
-                if len(group_data) > 1:
-                    grouped_rows.append({
-                        'Billing Party': f'{group} - Total',
-                        'CN Count': int(group_data['CN Count'].sum()),
-                        'Units': int(group_data['Units'].sum()),
-                        'Basic Freight': group_data['Basic Freight'].sum(),
-                        'is_total': True
-                    })
-
-        # Second: Single parties (Others) - no subtotal, just list them
+        # Second: Add Others to single parties
         others_data = client_summary[client_summary['Group'] == 'Others'].sort_values('Basic Freight', ascending=False)
         for _, row in others_data.iterrows():
-            grouped_rows.append({
+            single_parties.append({
                 'Billing Party': row['Billing Party'],
                 'CN Count': int(row['CN Count']),
                 'Units': int(row['Units']),
                 'Basic Freight': row['Basic Freight'],
                 'is_total': False
             })
+
+        # Sort single parties by Basic Freight and add to grouped_rows
+        single_parties_sorted = sorted(single_parties, key=lambda x: x['Basic Freight'], reverse=True)
+        grouped_rows.extend(single_parties_sorted)
 
         # Add Grand Total
         grouped_rows.append({
