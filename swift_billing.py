@@ -4,10 +4,20 @@ import psycopg2
 import os
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Try to load .env for local development
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+# Get config from st.secrets (Streamlit Cloud) or environment variables (local)
+def get_config(key):
+    try:
+        return st.secrets["database"][key]
+    except:
+        return os.getenv(key)
 
 # Auto-refresh every 1 hour (3600000 milliseconds)
 refresh_count = st_autorefresh(interval=3600000, limit=None, key="billing_auto_refresh")
@@ -173,11 +183,11 @@ st.markdown("""
 @st.cache_resource
 def get_connection():
     return psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME"),
-        port=os.getenv("DB_PORT", 5432)
+        host=get_config("DB_HOST"),
+        user=get_config("DB_USER"),
+        password=get_config("DB_PASSWORD"),
+        database=get_config("DB_NAME"),
+        port=get_config("DB_PORT") or 5432
     )
 
 # Load data function
