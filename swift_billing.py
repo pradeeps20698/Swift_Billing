@@ -570,35 +570,48 @@ with tab1:
         styled_df = display_df[['Billing Party', 'CN Count', 'Units', 'Basic Freight']].copy()
         styled_df['_is_total'] = display_df['is_total']
 
-        # Use st.dataframe with custom styling
-        st.markdown("""
-        <style>
-        .total-row { background-color: #b8860b !important; color: white !important; font-weight: bold !important; }
-        </style>
-        """, unsafe_allow_html=True)
+        # Build HTML table with improved styling
+        html_table = """
+        <div style='max-height: 500px; overflow-y: auto; border-radius: 10px;'>
+        <table style='width:100%; border-collapse: collapse; color: white; font-size: 14px;'>
+        <thead>
+            <tr style='background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); position: sticky; top: 0;'>
+                <th style='padding: 12px 15px; text-align: left; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Billing Party</th>
+                <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>CN Count</th>
+                <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Units</th>
+                <th style='padding: 12px 15px; text-align: right; font-weight: 600; border-bottom: 2px solid #3b82f6;'>Basic Freight</th>
+            </tr>
+        </thead>
+        <tbody>
+        """
 
-        # Build HTML table for better control
-        html_table = "<table style='width:100%; border-collapse: collapse; color: white;'>"
-        html_table += "<thead><tr style='background-color: #1e3a5f;'>"
-        html_table += "<th style='padding: 10px; text-align: left;'>Billing Party</th>"
-        html_table += "<th style='padding: 10px; text-align: right;'>CN Count</th>"
-        html_table += "<th style='padding: 10px; text-align: right;'>Units</th>"
-        html_table += "<th style='padding: 10px; text-align: right;'>Basic Freight</th>"
-        html_table += "</tr></thead><tbody>"
-
+        row_idx = 0
         for _, row in display_df.iterrows():
-            if row['is_total']:
-                style = "background-color: #b8860b; color: white; font-weight: bold;"
+            if row['Billing Party'] == 'Grand Total':
+                # Grand Total - Green prominent row
+                style = "background: linear-gradient(135deg, #065f46 0%, #047857 100%); color: white; font-weight: bold; font-size: 15px;"
+                border_style = "border-top: 2px solid #10b981;"
+            elif row['is_total']:
+                # Group subtotals - Gold/Orange row
+                style = "background: linear-gradient(135deg, #b8860b 0%, #d4a017 100%); color: #000000; font-weight: bold;"
+                border_style = ""
             else:
-                style = "background-color: #162544;"
+                # Alternating rows
+                if row_idx % 2 == 0:
+                    style = "background-color: #162544;"
+                else:
+                    style = "background-color: #1a2d4d;"
+                border_style = ""
+                row_idx += 1
+
             html_table += f"<tr style='{style}'>"
-            html_table += f"<td style='padding: 8px; border-bottom: 1px solid #2d4a6f;'>{row['Billing Party']}</td>"
-            html_table += f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{row['CN Count']:,}</td>"
-            html_table += f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{row['Units']:,}</td>"
-            html_table += f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{row['Basic Freight']}</td>"
+            html_table += f"<td style='padding: 10px 15px; border-bottom: 1px solid #2d4a6f; {border_style}'>{row['Billing Party']}</td>"
+            html_table += f"<td style='padding: 10px 15px; text-align: right; border-bottom: 1px solid #2d4a6f; {border_style}'>{row['CN Count']:,}</td>"
+            html_table += f"<td style='padding: 10px 15px; text-align: right; border-bottom: 1px solid #2d4a6f; {border_style}'>{row['Units']:,}</td>"
+            html_table += f"<td style='padding: 10px 15px; text-align: right; border-bottom: 1px solid #2d4a6f; {border_style}'>{row['Basic Freight']}</td>"
             html_table += "</tr>"
 
-        html_table += "</tbody></table>"
+        html_table += "</tbody></table></div>"
 
         st.markdown(html_table, unsafe_allow_html=True)
     else:
