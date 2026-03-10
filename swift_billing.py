@@ -489,25 +489,118 @@ with tab1:
     st.markdown("<div class='section-header'>Client-Wise Billing Summary</div>", unsafe_allow_html=True)
 
     if len(filtered_df) > 0:
+        # Define parent company groupings
+        def get_parent_group(party):
+            party_lower = party.lower() if party else ""
+            if 'honda' in party_lower:
+                return 'Honda'
+            elif 'mahindra' in party_lower or 'mstc' in party_lower:
+                return 'M & M'
+            elif 'toyota' in party_lower or 'transystem' in party_lower:
+                return 'Toyota'
+            elif 'glovis' in party_lower:
+                return 'Glovis'
+            elif 'tata' in party_lower:
+                return 'Tata'
+            elif 'skoda' in party_lower or 'volkswagen' in party_lower:
+                return 'Skoda VW'
+            elif 'john deere' in party_lower:
+                return 'John Deere'
+            else:
+                return 'Others'
+
+        # Get client summary
         client_summary = filtered_df.groupby('billing_party').agg({
             'cn_no': 'count',
             'qty': 'sum',
             'basic_freight': 'sum'
         }).reset_index()
-
         client_summary.columns = ['Billing Party', 'CN Count', 'Units', 'Basic Freight']
-        client_summary = client_summary.sort_values('Basic Freight', ascending=False)
 
-        client_display = client_summary.copy()
-        client_display['Basic Freight'] = client_display['Basic Freight'].apply(lambda x: f"₹{x:,.0f}")
-        client_display['Units'] = client_display['Units'].astype(int)
+        # Add parent group
+        client_summary['Group'] = client_summary['Billing Party'].apply(get_parent_group)
 
-        st.dataframe(
-            client_display,
-            use_container_width=True,
-            hide_index=True,
-            height=400
-        )
+        # Build grouped table with subtotals
+        grouped_rows = []
+        group_order = ['Honda', 'M & M', 'Toyota', 'Glovis', 'Tata', 'Skoda VW', 'John Deere', 'Others']
+
+        for group in group_order:
+            group_data = client_summary[client_summary['Group'] == group].sort_values('Basic Freight', ascending=False)
+            if len(group_data) > 0:
+                # Add individual rows
+                for _, row in group_data.iterrows():
+                    grouped_rows.append({
+                        'Billing Party': row['Billing Party'],
+                        'CN Count': int(row['CN Count']),
+                        'Units': int(row['Units']),
+                        'Basic Freight': row['Basic Freight'],
+                        'is_total': False
+                    })
+
+                # Add group subtotal if more than 1 party in group
+                if len(group_data) > 1:
+                    grouped_rows.append({
+                        'Billing Party': f'{group} - Total',
+                        'CN Count': int(group_data['CN Count'].sum()),
+                        'Units': int(group_data['Units'].sum()),
+                        'Basic Freight': group_data['Basic Freight'].sum(),
+                        'is_total': True
+                    })
+
+        # Add Grand Total
+        grouped_rows.append({
+            'Billing Party': 'Grand Total',
+            'CN Count': int(client_summary['CN Count'].sum()),
+            'Units': int(client_summary['Units'].sum()),
+            'Basic Freight': client_summary['Basic Freight'].sum(),
+            'is_total': True
+        })
+
+        # Create display dataframe
+        display_df = pd.DataFrame(grouped_rows)
+
+        # Format for display with highlighting
+        def highlight_totals(row):
+            if row['is_total']:
+                return ['background-color: #b8860b; color: white; font-weight: bold'] * len(row)
+            return [''] * len(row)
+
+        # Prepare display columns
+        display_df['Basic Freight'] = display_df['Basic Freight'].apply(lambda x: f"₹{x:,.0f}")
+        styled_df = display_df[['Billing Party', 'CN Count', 'Units', 'Basic Freight']].copy()
+        styled_df['_is_total'] = display_df['is_total']
+
+        # Use st.dataframe with custom styling
+        st.markdown("""
+        <style>
+        .total-row { background-color: #b8860b !important; color: white !important; font-weight: bold !important; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # Build HTML table for better control
+        html_table = "<table style='width:100%; border-collapse: collapse; color: white;'>"
+        html_table += "<thead><tr style='background-color: #1e3a5f;'>"
+        html_table += "<th style='padding: 10px; text-align: left;'>Billing Party</th>"
+        html_table += "<th style='padding: 10px; text-align: right;'>CN Count</th>"
+        html_table += "<th style='padding: 10px; text-align: right;'>Units</th>"
+        html_table += "<th style='padding: 10px; text-align: right;'>Basic Freight</th>"
+        html_table += "</tr></thead><tbody>"
+
+        for _, row in display_df.iterrows():
+            if row['is_total']:
+                style = "background-color: #b8860b; color: white; font-weight: bold;"
+            else:
+                style = "background-color: #162544;"
+            html_table += f"<tr style='{style}'>"
+            html_table += f"<td style='padding: 8px; border-bottom: 1px solid #2d4a6f;'>{row['Billing Party']}</td>"
+            html_table += f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{row['CN Count']:,}</td>"
+            html_table += f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{row['Units']:,}</td>"
+            html_table += f"<td style='padding: 8px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{row['Basic Freight']}</td>"
+            html_table += "</tr>"
+
+        html_table += "</tbody></table>"
+
+        st.markdown(html_table, unsafe_allow_html=True)
     else:
         st.info("No data found for the selected filters.")
 
