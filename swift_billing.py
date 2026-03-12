@@ -797,30 +797,41 @@ with tab4:
 
             # Build grouped rows with subtotals
             grouped_rows = []
+            single_parties = []  # Collect single parties to show at bottom
             group_order = ['M & M', 'Toyota', 'Glovis', 'Tata', 'Honda', 'Skoda VW', 'John Deere', 'ValueDrive']
 
             for group in group_order:
                 group_data = pivot_df[pivot_df['Group'] == group].sort_values('Total_Amt', ascending=False)
-                if len(group_data) > 0:
-                    # Add individual party rows
+                if len(group_data) > 1:
+                    # Multiple parties - show with subtotal
                     for _, row in group_data.iterrows():
                         row_dict = {'Billing Party': row['Billing Party'], 'is_total': False}
                         for ml in month_labels:
                             row_dict[f'{ml}_CN'] = row.get(f'{ml}_CN', 0)
                             row_dict[f'{ml}_Qty'] = row.get(f'{ml}_Qty', 0)
                             row_dict[f'{ml}_Amt'] = row.get(f'{ml}_Amt', 0)
+                        row_dict['_total_amt'] = row.get('Total_Amt', 0)
                         grouped_rows.append(row_dict)
 
-                    # Add group subtotal if more than 1 party
-                    if len(group_data) > 1:
-                        subtotal_row = {'Billing Party': f'{group} - Total', 'is_total': True}
-                        for ml in month_labels:
-                            subtotal_row[f'{ml}_CN'] = int(group_data[f'{ml}_CN'].sum())
-                            subtotal_row[f'{ml}_Qty'] = int(group_data[f'{ml}_Qty'].sum())
-                            subtotal_row[f'{ml}_Amt'] = group_data[f'{ml}_Amt'].sum()
-                        grouped_rows.append(subtotal_row)
+                    # Add group subtotal
+                    subtotal_row = {'Billing Party': f'{group} - Total', 'is_total': True}
+                    for ml in month_labels:
+                        subtotal_row[f'{ml}_CN'] = int(group_data[f'{ml}_CN'].sum())
+                        subtotal_row[f'{ml}_Qty'] = int(group_data[f'{ml}_Qty'].sum())
+                        subtotal_row[f'{ml}_Amt'] = group_data[f'{ml}_Amt'].sum()
+                    grouped_rows.append(subtotal_row)
+                elif len(group_data) == 1:
+                    # Single party - add to single parties list for bottom
+                    row = group_data.iloc[0]
+                    row_dict = {'Billing Party': row['Billing Party'], 'is_total': False}
+                    for ml in month_labels:
+                        row_dict[f'{ml}_CN'] = row.get(f'{ml}_CN', 0)
+                        row_dict[f'{ml}_Qty'] = row.get(f'{ml}_Qty', 0)
+                        row_dict[f'{ml}_Amt'] = row.get(f'{ml}_Amt', 0)
+                    row_dict['_total_amt'] = row.get('Total_Amt', 0)
+                    single_parties.append(row_dict)
 
-            # Add Others group
+            # Add Others group to single parties
             others_data = pivot_df[pivot_df['Group'] == 'Others'].sort_values('Total_Amt', ascending=False)
             for _, row in others_data.iterrows():
                 row_dict = {'Billing Party': row['Billing Party'], 'is_total': False}
@@ -828,7 +839,12 @@ with tab4:
                     row_dict[f'{ml}_CN'] = row.get(f'{ml}_CN', 0)
                     row_dict[f'{ml}_Qty'] = row.get(f'{ml}_Qty', 0)
                     row_dict[f'{ml}_Amt'] = row.get(f'{ml}_Amt', 0)
-                grouped_rows.append(row_dict)
+                row_dict['_total_amt'] = row.get('Total_Amt', 0)
+                single_parties.append(row_dict)
+
+            # Sort single parties by total amount and add to grouped_rows
+            single_parties_sorted = sorted(single_parties, key=lambda x: x.get('_total_amt', 0), reverse=True)
+            grouped_rows.extend(single_parties_sorted)
 
             # Calculate Grand Total
             grand_total = {'Billing Party': 'Grand Total', 'is_total': True, 'is_grand': True}
@@ -837,69 +853,73 @@ with tab4:
                 grand_total[f'{ml}_Qty'] = int(pivot_df[f'{ml}_Qty'].sum())
                 grand_total[f'{ml}_Amt'] = pivot_df[f'{ml}_Amt'].sum()
 
-            # Build HTML table
+            # Build HTML table with bold borders and sticky headers
             html_parts = []
-            html_parts.append("<div style='max-height: 500px; overflow-x: auto; overflow-y: auto; border-radius: 10px;'>")
+            html_parts.append("<div style='max-height: 500px; overflow-x: auto; overflow-y: auto; border-radius: 10px; border: 2px solid #3b82f6;'>")
             html_parts.append("<table style='width:100%; border-collapse: collapse; color: white; font-size: 12px; min-width: 1200px;'>")
             html_parts.append("<thead>")
-            html_parts.append("<tr style='background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); position: sticky; top: 0;'>")
-            html_parts.append("<th style='padding: 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #3b82f6; min-width: 250px;'>Billing Party</th>")
+            # First header row - month names
+            html_parts.append("<tr style='background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); position: sticky; top: 0; z-index: 3;'>")
+            html_parts.append("<th style='padding: 10px; text-align: left; font-weight: 600; border: 2px solid #3b82f6; min-width: 250px; background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);'>Billing Party</th>")
 
             # Add month column headers
             for ml in month_labels:
-                html_parts.append(f"<th style='padding: 8px 4px; text-align: center; font-weight: 600; border-bottom: 2px solid #3b82f6;' colspan='3'>{ml}</th>")
+                html_parts.append(f"<th style='padding: 8px 4px; text-align: center; font-weight: 600; border: 2px solid #3b82f6; background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);' colspan='3'>{ml}</th>")
 
             html_parts.append("</tr>")
-            html_parts.append("<tr style='background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);'>")
-            html_parts.append("<th style='padding: 6px; border-bottom: 1px solid #3b82f6;'></th>")
+            # Second header row - sub-columns
+            html_parts.append("<tr style='background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); position: sticky; top: 35px; z-index: 3;'>")
+            html_parts.append("<th style='padding: 6px; border: 2px solid #3b82f6; background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);'></th>")
 
-            for ml in month_labels:
-                html_parts.append("<th style='padding: 6px 4px; text-align: right; font-weight: 500; border-bottom: 1px solid #3b82f6; font-size: 10px;'>No. of CN</th>")
-                html_parts.append("<th style='padding: 6px 4px; text-align: right; font-weight: 500; border-bottom: 1px solid #3b82f6; font-size: 10px;'>Qty</th>")
-                html_parts.append("<th style='padding: 6px 4px; text-align: right; font-weight: 500; border-bottom: 1px solid #3b82f6; font-size: 10px;'>Unbilled Amt</th>")
+            for i, ml in enumerate(month_labels):
+                html_parts.append("<th style='padding: 6px 4px; text-align: right; font-weight: 500; border-bottom: 2px solid #3b82f6; border-left: 2px solid #3b82f6; font-size: 10px; background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);'>No. of CN</th>")
+                html_parts.append("<th style='padding: 6px 4px; text-align: right; font-weight: 500; border-bottom: 2px solid #3b82f6; font-size: 10px; background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);'>Qty</th>")
+                html_parts.append("<th style='padding: 6px 4px; text-align: right; font-weight: 500; border-bottom: 2px solid #3b82f6; border-right: 2px solid #3b82f6; font-size: 10px; background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);'>Unbilled Amt</th>")
 
-            html_parts.append("</tr></thead><tbody>")
-
-            # Add Grand Total row first (at top)
-            html_parts.append("<tr style='background: linear-gradient(135deg, #065f46 0%, #047857 100%); color: white; font-weight: bold;'>")
-            html_parts.append(f"<td style='padding: 10px; border-bottom: 2px solid #10b981;'>{grand_total['Billing Party']}</td>")
-            for ml in month_labels:
+            html_parts.append("</tr>")
+            # Grand Total row - sticky
+            html_parts.append("<tr style='background: linear-gradient(135deg, #065f46 0%, #047857 100%); color: white; font-weight: bold; position: sticky; top: 62px; z-index: 2;'>")
+            html_parts.append(f"<th style='padding: 10px; text-align: left; border: 2px solid #10b981; background: linear-gradient(135deg, #065f46 0%, #047857 100%);'>{grand_total['Billing Party']}</th>")
+            for i, ml in enumerate(month_labels):
                 cn_val = grand_total[f'{ml}_CN']
                 qty_val = grand_total[f'{ml}_Qty']
                 amt_val = grand_total[f'{ml}_Amt']
                 cn_display = cn_val if cn_val > 0 else '-'
                 qty_display = qty_val if qty_val > 0 else '-'
                 amt_display = f"₹{amt_val:,.0f}" if amt_val > 0 else '-'
-                html_parts.append(f"<td style='padding: 8px 4px; text-align: right; border-bottom: 2px solid #10b981;'>{cn_display}</td>")
-                html_parts.append(f"<td style='padding: 8px 4px; text-align: right; border-bottom: 2px solid #10b981;'>{qty_display}</td>")
-                html_parts.append(f"<td style='padding: 8px 4px; text-align: right; border-bottom: 2px solid #10b981;'>{amt_display}</td>")
+                html_parts.append(f"<th style='padding: 8px 4px; text-align: right; border-bottom: 2px solid #10b981; border-left: 2px solid #10b981; background: linear-gradient(135deg, #065f46 0%, #047857 100%);'>{cn_display}</th>")
+                html_parts.append(f"<th style='padding: 8px 4px; text-align: right; border-bottom: 2px solid #10b981; background: linear-gradient(135deg, #065f46 0%, #047857 100%);'>{qty_display}</th>")
+                html_parts.append(f"<th style='padding: 8px 4px; text-align: right; border-bottom: 2px solid #10b981; border-right: 2px solid #10b981; background: linear-gradient(135deg, #065f46 0%, #047857 100%);'>{amt_display}</th>")
             html_parts.append("</tr>")
+            html_parts.append("</thead><tbody>")
 
             # Add data rows
             row_idx = 0
             for row in grouped_rows:
                 if row.get('is_total'):
                     style = "background: linear-gradient(135deg, #b8860b 0%, #d4a017 100%); color: #000000; font-weight: bold;"
+                    border_color = "#b8860b"
                 else:
                     if row_idx % 2 == 0:
                         style = "background-color: #162544;"
                     else:
                         style = "background-color: #1a2d4d;"
                     row_idx += 1
+                    border_color = "#3b82f6"
 
                 html_parts.append(f"<tr style='{style}'>")
-                html_parts.append(f"<td style='padding: 8px 10px; border-bottom: 1px solid #2d4a6f;'>{row['Billing Party']}</td>")
+                html_parts.append(f"<td style='padding: 8px 10px; border: 1px solid {border_color}; border-left: 2px solid #3b82f6; border-right: 2px solid #3b82f6;'>{row['Billing Party']}</td>")
 
-                for ml in month_labels:
+                for i, ml in enumerate(month_labels):
                     cn_val = row.get(f'{ml}_CN', 0)
                     qty_val = row.get(f'{ml}_Qty', 0)
                     amt_val = row.get(f'{ml}_Amt', 0)
                     cn_display = int(cn_val) if cn_val > 0 else '-'
                     qty_display = int(qty_val) if qty_val > 0 else '-'
                     amt_display = f"₹{amt_val:,.0f}" if amt_val > 0 else '-'
-                    html_parts.append(f"<td style='padding: 6px 4px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{cn_display}</td>")
-                    html_parts.append(f"<td style='padding: 6px 4px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{qty_display}</td>")
-                    html_parts.append(f"<td style='padding: 6px 4px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{amt_display}</td>")
+                    html_parts.append(f"<td style='padding: 6px 4px; text-align: right; border-bottom: 1px solid {border_color}; border-left: 2px solid #3b82f6;'>{cn_display}</td>")
+                    html_parts.append(f"<td style='padding: 6px 4px; text-align: right; border-bottom: 1px solid {border_color};'>{qty_display}</td>")
+                    html_parts.append(f"<td style='padding: 6px 4px; text-align: right; border-bottom: 1px solid {border_color}; border-right: 2px solid #3b82f6;'>{amt_display}</td>")
 
                 html_parts.append("</tr>")
 
