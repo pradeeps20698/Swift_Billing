@@ -928,19 +928,22 @@ with tab4:
 
             st.markdown(html_table, unsafe_allow_html=True)
 
-            # Download button
+            # Download button - CN-wise details
             @st.cache_data
             def convert_df_to_csv(dataframe):
                 return dataframe.to_csv(index=False).encode('utf-8')
 
-            # Prepare download data
-            download_df = pd.DataFrame(grouped_rows)
-            download_df = download_df.drop(columns=['is_total'], errors='ignore')
+            # Prepare CN-wise download data
+            download_df = unbilled_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'vehicle_no', 'qty', 'basic_freight', 'pod_receipt_no']].copy()
+            download_df.columns = ['CN No', 'CN Date', 'Branch', 'Billing Party', 'Vehicle No', 'Qty', 'Basic Freight', 'POD Receipt No']
+            download_df['CN Date'] = download_df['CN Date'].dt.strftime('%d-%m-%Y')
+            download_df = download_df.sort_values(['Billing Party', 'CN Date'], ascending=[True, False])
+
             csv = convert_df_to_csv(download_df)
             st.download_button(
                 label="📥 Download Unbilled CN Data",
                 data=csv,
-                file_name=f"unbilled_cn_report_{datetime.now().strftime('%Y%m%d')}.csv",
+                file_name=f"unbilled_cn_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
         else:
