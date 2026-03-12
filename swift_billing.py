@@ -507,6 +507,8 @@ with tab1:
                 return 'Skoda VW'
             elif 'john deere' in party_lower:
                 return 'John Deere'
+            elif 'valuedrive' in party_lower or 'spinny' in party_lower:
+                return 'ValueDrive'
             else:
                 return 'Others'
 
@@ -526,7 +528,7 @@ with tab1:
         single_parties = []  # Collect single parties to show at bottom
 
         # First: Groups with multiple parties (show subtotals)
-        group_order = ['Honda', 'M & M', 'Toyota', 'Glovis', 'Tata', 'Skoda VW', 'John Deere']
+        group_order = ['Honda', 'M & M', 'Toyota', 'Glovis', 'Tata', 'Skoda VW', 'John Deere', 'ValueDrive']
 
         for group in group_order:
             group_data = client_summary[client_summary['Group'] == group].sort_values('Basic Freight', ascending=False)
@@ -741,12 +743,35 @@ with tab4:
         months_sorted = sorted(valid_months, reverse=True)[:9]
 
         if len(unbilled_df) > 0:
+            # Define parent company groupings (same as Client-Wise Summary)
+            def get_parent_group_unbilled(party):
+                party_lower = party.lower() if party else ""
+                if 'honda' in party_lower:
+                    return 'Honda'
+                elif 'mahindra' in party_lower or 'mstc' in party_lower:
+                    return 'M & M'
+                elif 'toyota' in party_lower or 'transystem' in party_lower:
+                    return 'Toyota'
+                elif 'glovis' in party_lower:
+                    return 'Glovis'
+                elif 'tata' in party_lower:
+                    return 'Tata'
+                elif 'skoda' in party_lower or 'volkswagen' in party_lower:
+                    return 'Skoda VW'
+                elif 'john deere' in party_lower:
+                    return 'John Deere'
+                elif 'valuedrive' in party_lower or 'spinny' in party_lower:
+                    return 'ValueDrive'
+                else:
+                    return 'Others'
+
+            # Build pivot data with group info
             pivot_data = []
             parties = unbilled_df['billing_party'].dropna().unique()
 
-            for party in sorted(parties):
+            for party in parties:
                 party_data = unbilled_df[unbilled_df['billing_party'] == party]
-                row = {'Billing Party': party}
+                row = {'Billing Party': party, 'Group': get_parent_group_unbilled(party)}
 
                 for month in months_sorted:
                     month_data = party_data[party_data['cn_month'] == month]
@@ -757,40 +782,141 @@ with tab4:
                     row[f'{month_label}_Qty'] = int(month_data['qty'].sum())
                     row[f'{month_label}_Amt'] = month_data['basic_freight'].sum()
 
+                # Calculate total amount for sorting
+                total_amt = 0
+                for m in months_sorted:
+                    ml = datetime.strptime(str(m), "%Y-%m").strftime("%b'%y")
+                    total_amt += row.get(f'{ml}_Amt', 0)
+                row['Total_Amt'] = total_amt
                 pivot_data.append(row)
 
             pivot_df = pd.DataFrame(pivot_data)
 
-            pivot_df['Total_Amt'] = pivot_df[[col for col in pivot_df.columns if col.endswith('_Amt')]].sum(axis=1)
-            pivot_df = pivot_df.sort_values('Total_Amt', ascending=False)
-            pivot_df = pivot_df.drop('Total_Amt', axis=1)
+            # Get month labels for columns
+            month_labels = [datetime.strptime(str(m), "%Y-%m").strftime("%b'%y") for m in months_sorted]
 
-            for col in pivot_df.columns:
-                if col.endswith('_Amt'):
-                    pivot_df[col] = pivot_df[col].apply(lambda x: f"₹{x:,.0f}" if x > 0 else "-")
-                elif col.endswith('_CN') or col.endswith('_Qty'):
-                    pivot_df[col] = pivot_df[col].apply(lambda x: str(int(x)) if x > 0 else "-")
+            # Build grouped rows with subtotals
+            grouped_rows = []
+            group_order = ['M & M', 'Toyota', 'Glovis', 'Tata', 'Honda', 'Skoda VW', 'John Deere', 'ValueDrive']
 
-            new_columns = ['Billing Party']
-            for month in months_sorted:
-                month_str = str(month)
-                month_label = datetime.strptime(month_str, "%Y-%m").strftime("%b'%y")
-                new_columns.extend([f'{month_label} CN', f'{month_label} Qty', f'{month_label} Amt'])
+            for group in group_order:
+                group_data = pivot_df[pivot_df['Group'] == group].sort_values('Total_Amt', ascending=False)
+                if len(group_data) > 0:
+                    # Add individual party rows
+                    for _, row in group_data.iterrows():
+                        row_dict = {'Billing Party': row['Billing Party'], 'is_total': False}
+                        for ml in month_labels:
+                            row_dict[f'{ml}_CN'] = row.get(f'{ml}_CN', 0)
+                            row_dict[f'{ml}_Qty'] = row.get(f'{ml}_Qty', 0)
+                            row_dict[f'{ml}_Amt'] = row.get(f'{ml}_Amt', 0)
+                        grouped_rows.append(row_dict)
 
-            pivot_df.columns = new_columns
+                    # Add group subtotal if more than 1 party
+                    if len(group_data) > 1:
+                        subtotal_row = {'Billing Party': f'{group} - Total', 'is_total': True}
+                        for ml in month_labels:
+                            subtotal_row[f'{ml}_CN'] = int(group_data[f'{ml}_CN'].sum())
+                            subtotal_row[f'{ml}_Qty'] = int(group_data[f'{ml}_Qty'].sum())
+                            subtotal_row[f'{ml}_Amt'] = group_data[f'{ml}_Amt'].sum()
+                        grouped_rows.append(subtotal_row)
 
-            st.dataframe(
-                pivot_df,
-                use_container_width=True,
-                hide_index=True,
-                height=450
-            )
+            # Add Others group
+            others_data = pivot_df[pivot_df['Group'] == 'Others'].sort_values('Total_Amt', ascending=False)
+            for _, row in others_data.iterrows():
+                row_dict = {'Billing Party': row['Billing Party'], 'is_total': False}
+                for ml in month_labels:
+                    row_dict[f'{ml}_CN'] = row.get(f'{ml}_CN', 0)
+                    row_dict[f'{ml}_Qty'] = row.get(f'{ml}_Qty', 0)
+                    row_dict[f'{ml}_Amt'] = row.get(f'{ml}_Amt', 0)
+                grouped_rows.append(row_dict)
 
+            # Calculate Grand Total
+            grand_total = {'Billing Party': 'Grand Total', 'is_total': True, 'is_grand': True}
+            for ml in month_labels:
+                grand_total[f'{ml}_CN'] = int(pivot_df[f'{ml}_CN'].sum())
+                grand_total[f'{ml}_Qty'] = int(pivot_df[f'{ml}_Qty'].sum())
+                grand_total[f'{ml}_Amt'] = pivot_df[f'{ml}_Amt'].sum()
+
+            # Build HTML table
+            html_parts = []
+            html_parts.append("<div style='max-height: 500px; overflow-x: auto; overflow-y: auto; border-radius: 10px;'>")
+            html_parts.append("<table style='width:100%; border-collapse: collapse; color: white; font-size: 12px; min-width: 1200px;'>")
+            html_parts.append("<thead>")
+            html_parts.append("<tr style='background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); position: sticky; top: 0;'>")
+            html_parts.append("<th style='padding: 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #3b82f6; min-width: 250px;'>Billing Party</th>")
+
+            # Add month column headers
+            for ml in month_labels:
+                html_parts.append(f"<th style='padding: 8px 4px; text-align: center; font-weight: 600; border-bottom: 2px solid #3b82f6;' colspan='3'>{ml}</th>")
+
+            html_parts.append("</tr>")
+            html_parts.append("<tr style='background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);'>")
+            html_parts.append("<th style='padding: 6px; border-bottom: 1px solid #3b82f6;'></th>")
+
+            for ml in month_labels:
+                html_parts.append("<th style='padding: 6px 4px; text-align: right; font-weight: 500; border-bottom: 1px solid #3b82f6; font-size: 10px;'>No. of CN</th>")
+                html_parts.append("<th style='padding: 6px 4px; text-align: right; font-weight: 500; border-bottom: 1px solid #3b82f6; font-size: 10px;'>Qty</th>")
+                html_parts.append("<th style='padding: 6px 4px; text-align: right; font-weight: 500; border-bottom: 1px solid #3b82f6; font-size: 10px;'>Unbilled Amt</th>")
+
+            html_parts.append("</tr></thead><tbody>")
+
+            # Add Grand Total row first (at top)
+            html_parts.append("<tr style='background: linear-gradient(135deg, #065f46 0%, #047857 100%); color: white; font-weight: bold;'>")
+            html_parts.append(f"<td style='padding: 10px; border-bottom: 2px solid #10b981;'>{grand_total['Billing Party']}</td>")
+            for ml in month_labels:
+                cn_val = grand_total[f'{ml}_CN']
+                qty_val = grand_total[f'{ml}_Qty']
+                amt_val = grand_total[f'{ml}_Amt']
+                cn_display = cn_val if cn_val > 0 else '-'
+                qty_display = qty_val if qty_val > 0 else '-'
+                amt_display = f"₹{amt_val:,.0f}" if amt_val > 0 else '-'
+                html_parts.append(f"<td style='padding: 8px 4px; text-align: right; border-bottom: 2px solid #10b981;'>{cn_display}</td>")
+                html_parts.append(f"<td style='padding: 8px 4px; text-align: right; border-bottom: 2px solid #10b981;'>{qty_display}</td>")
+                html_parts.append(f"<td style='padding: 8px 4px; text-align: right; border-bottom: 2px solid #10b981;'>{amt_display}</td>")
+            html_parts.append("</tr>")
+
+            # Add data rows
+            row_idx = 0
+            for row in grouped_rows:
+                if row.get('is_total'):
+                    style = "background: linear-gradient(135deg, #b8860b 0%, #d4a017 100%); color: #000000; font-weight: bold;"
+                else:
+                    if row_idx % 2 == 0:
+                        style = "background-color: #162544;"
+                    else:
+                        style = "background-color: #1a2d4d;"
+                    row_idx += 1
+
+                html_parts.append(f"<tr style='{style}'>")
+                html_parts.append(f"<td style='padding: 8px 10px; border-bottom: 1px solid #2d4a6f;'>{row['Billing Party']}</td>")
+
+                for ml in month_labels:
+                    cn_val = row.get(f'{ml}_CN', 0)
+                    qty_val = row.get(f'{ml}_Qty', 0)
+                    amt_val = row.get(f'{ml}_Amt', 0)
+                    cn_display = int(cn_val) if cn_val > 0 else '-'
+                    qty_display = int(qty_val) if qty_val > 0 else '-'
+                    amt_display = f"₹{amt_val:,.0f}" if amt_val > 0 else '-'
+                    html_parts.append(f"<td style='padding: 6px 4px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{cn_display}</td>")
+                    html_parts.append(f"<td style='padding: 6px 4px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{qty_display}</td>")
+                    html_parts.append(f"<td style='padding: 6px 4px; text-align: right; border-bottom: 1px solid #2d4a6f;'>{amt_display}</td>")
+
+                html_parts.append("</tr>")
+
+            html_parts.append("</tbody></table></div>")
+            html_table = "".join(html_parts)
+
+            st.markdown(html_table, unsafe_allow_html=True)
+
+            # Download button
             @st.cache_data
             def convert_df_to_csv(dataframe):
                 return dataframe.to_csv(index=False).encode('utf-8')
 
-            csv = convert_df_to_csv(pivot_df)
+            # Prepare download data
+            download_df = pd.DataFrame(grouped_rows)
+            download_df = download_df.drop(columns=['is_total'], errors='ignore')
+            csv = convert_df_to_csv(download_df)
             st.download_button(
                 label="📥 Download Unbilled CN Data",
                 data=csv,
