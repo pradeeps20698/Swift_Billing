@@ -202,6 +202,7 @@ def load_data():
             deduction_lr, balance, consignee, material_detail, pod_status,
             pod_receipt_no
         FROM cn_data
+        WHERE is_active = 'Yes'
         ORDER BY bill_date DESC NULLS LAST
     """
     df = pd.read_sql(query, conn)
@@ -214,7 +215,7 @@ def load_data():
 # Get last API update time from database
 def get_db_last_update():
     conn = get_connection()
-    query = "SELECT MAX(updated_at) FROM cn_data"
+    query = "SELECT MAX(updated_at) FROM cn_data WHERE is_active = 'Yes'"
     result = pd.read_sql(query, conn)
     last_update = result.iloc[0, 0]
     return last_update
