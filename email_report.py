@@ -443,7 +443,7 @@ def send_all_reports():
 
     if len(filtered_df_2) > 0:
         send_email_report(
-            to_emails=["billing01@srlpl.in"],
+            to_emails=["billingmahindra@gmail.com"],
             cc_emails=cc_emails,
             unbilled_df=filtered_df_2,
             subject_suffix="Mahindra & John Deere"
@@ -511,7 +511,7 @@ def send_reports_no_cc():
 
     if len(filtered_df_2) > 0:
         send_email_report(
-            to_emails=["billing01@srlpl.in"],
+            to_emails=["billingmahindra@gmail.com"],
             cc_emails=None,
             unbilled_df=filtered_df_2,
             subject_suffix="Mahindra & John Deere"

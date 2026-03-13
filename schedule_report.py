@@ -38,7 +38,7 @@ def main():
     print("    CC: shyam.wadhwa@srlpl.in, ns@srlpl.in, headops@srlpl.in,")
     print("        finance01@srlpl.in, mis03@srlpl.in, mis@srlpl.in")
     print("\n  Email 2: Only Mahindra & John Deere")
-    print("    To: billing01@srlpl.in")
+    print("    To: billingmahindra@gmail.com")
     print("    CC: (same as above)")
     print("\nPress Ctrl+C to stop")
     print("=" * 60)
