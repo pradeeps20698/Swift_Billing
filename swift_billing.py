@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import psycopg2
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
 # Try to load .env for local development
@@ -196,7 +196,7 @@ def load_data():
     query = """
         SELECT
             cn_no, cn_date, branch, state, billing_party, bill_no, bill_date,
-            route, origin, destination, km, vehicle_no, vehicle_type,
+            route, origin, destination, km, eta, vehicle_no, vehicle_type,
             charge_weight, actual_weight, qty, basic_freight, detention,
             hamali, other_charges, penalty, total_freight, payment_received,
             deduction_lr, balance, consignee, material_detail, pod_status,
@@ -208,6 +208,7 @@ def load_data():
     df = pd.read_sql(query, conn)
     df['cn_date'] = pd.to_datetime(df['cn_date'])
     df['bill_date'] = pd.to_datetime(df['bill_date'])
+    df['eta'] = pd.to_datetime(df['eta'])
     df['month'] = df['bill_date'].dt.to_period('M')
     df['is_own'] = df['vehicle_type'].str.lower().str.contains('own', na=False)
     return df
@@ -976,13 +977,16 @@ with tab5:
 
 with tab6:
     st.markdown("<div class='section-header'>Pending POD - POD Not Received</div>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #64748b; font-size: 12px;'>CNs where POD Receipt No is blank - grouped by Party and Month</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748b; font-size: 12px;'>CNs where Bill No is blank, POD Receipt No is blank, and ETA < D-4 - grouped by Party and Month</p>", unsafe_allow_html=True)
 
     # Get CNs with pending POD (POD not received) from FULL dataset
+    # Filter: Bill No blank + POD Receipt No blank + ETA < D-4
+    d_minus_4 = datetime.now() - timedelta(days=4)
+
     pending_pod_df = df[
-        (df['pod_receipt_no'].isna()) |
-        (df['pod_receipt_no'] == '') |
-        (df['pod_receipt_no'].astype(str).str.strip() == '')
+        ((df['bill_no'].isna()) | (df['bill_no'] == '') | (df['bill_no'].astype(str).str.strip() == '')) &
+        ((df['pod_receipt_no'].isna()) | (df['pod_receipt_no'] == '') | (df['pod_receipt_no'].astype(str).str.strip() == '')) &
+        (df['eta'].notna()) & (df['eta'] < d_minus_4)
     ].copy()
 
     pending_pod_df['cn_month'] = pending_pod_df['cn_date'].dt.to_period('M')
