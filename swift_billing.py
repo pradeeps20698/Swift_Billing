@@ -336,28 +336,6 @@ st.sidebar.selectbox(
     label_visibility="collapsed"
 )
 
-# Branch filter
-st.sidebar.markdown("### 📍 Branch")
-branch_index = branches.index(st.session_state.selected_branch) if st.session_state.selected_branch in branches else 0
-st.sidebar.selectbox(
-    "Select Branch",
-    branches,
-    index=branch_index,
-    key="branch_select",
-    on_change=on_branch_change,
-    label_visibility="collapsed"
-)
-
-# Search box
-st.sidebar.markdown("### 🔍 Search")
-st.sidebar.text_input(
-    "Search CN/Vehicle/Party",
-    value=st.session_state.search_query,
-    key="search_input",
-    on_change=on_search_change,
-    placeholder="Type to search..."
-)
-
 st.sidebar.markdown("---")
 
 # Action buttons
@@ -380,10 +358,6 @@ if st.session_state.selected_month:
     active_filters.append(f"Month: {st.session_state.selected_month}")
 if st.session_state.selected_party != "All":
     active_filters.append(f"Party: {st.session_state.selected_party[:20]}...")
-if st.session_state.selected_branch != "All":
-    active_filters.append(f"Branch: {st.session_state.selected_branch}")
-if st.session_state.search_query:
-    active_filters.append(f"Search: {st.session_state.search_query}")
 
 if active_filters:
     for f in active_filters:
@@ -481,10 +455,8 @@ with col3:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # Tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Client-Wise Summary",
-    "🏢 Branch-Wise Summary",
-    "📋 CN Details",
     "💰 Unbilled CNs",
     "📈 Monthly Trend",
     "📦 Pending POD"
@@ -494,6 +466,54 @@ with tab1:
     st.markdown("<div class='section-header'>Client-Wise Billing Summary</div>", unsafe_allow_html=True)
 
     if len(filtered_df) > 0:
+        # Calculate Pooja and Rohit billing summaries
+        pooja_df = filtered_df[~filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+        rohit_df = filtered_df[filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+
+        pooja_bills = pooja_df['bill_no'].nunique()
+        pooja_amount = pooja_df['basic_freight'].sum()
+        rohit_bills = rohit_df['bill_no'].nunique()
+        rohit_amount = rohit_df['basic_freight'].sum()
+
+        # Display Pooja and Rohit billing boxes
+        col_pooja, col_rohit = st.columns(2)
+
+        with col_pooja:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <div style="color: #e9d5ff; font-size: 14px; font-weight: 600; margin-bottom: 8px;">👩 Pooja Ma'am Billed</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="text-align: center;">
+                        <div style="color: #c4b5fd; font-size: 12px;">No of Bills</div>
+                        <div style="color: white; font-size: 28px; font-weight: bold;">{pooja_bills:,}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="color: #c4b5fd; font-size: 12px;">Billed Amount</div>
+                        <div style="color: white; font-size: 28px; font-weight: bold;">₹{pooja_amount/100000:.2f}L</div>
+                    </div>
+                </div>
+                <div style="color: #a78bfa; font-size: 10px; margin-top: 8px;">Excludes: Mahindra, John Deere</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_rohit:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <div style="color: #cffafe; font-size: 14px; font-weight: 600; margin-bottom: 8px;">👨 Rohit Sir Billed</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="text-align: center;">
+                        <div style="color: #a5f3fc; font-size: 12px;">No of Bills</div>
+                        <div style="color: white; font-size: 28px; font-weight: bold;">{rohit_bills:,}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="color: #a5f3fc; font-size: 12px;">Billed Amount</div>
+                        <div style="color: white; font-size: 28px; font-weight: bold;">₹{rohit_amount/100000:.2f}L</div>
+                    </div>
+                </div>
+                <div style="color: #67e8f9; font-size: 10px; margin-top: 8px;">Includes: Mahindra, John Deere</div>
+            </div>
+            """, unsafe_allow_html=True)
+
         # Define parent company groupings
         def get_parent_group(party):
             party_lower = party.lower() if party else ""
@@ -651,56 +671,6 @@ with tab1:
         st.info("No data found for the selected filters.")
 
 with tab2:
-    st.markdown("<div class='section-header'>Branch-Wise Billing Summary</div>", unsafe_allow_html=True)
-
-    if len(filtered_df) > 0:
-        branch_summary = filtered_df.groupby('branch').agg({
-            'bill_no': 'nunique',
-            'qty': 'sum',
-            'basic_freight': 'sum'
-        }).reset_index()
-
-        branch_summary.columns = ['Branch', 'No of Bills', 'Units', 'Billed Amount']
-        branch_summary = branch_summary.sort_values('Billed Amount', ascending=False)
-
-        branch_display = branch_summary.copy()
-        branch_display['Billed Amount'] = branch_display['Billed Amount'].apply(lambda x: f"₹{x:,.0f}")
-        branch_display['Units'] = branch_display['Units'].astype(int)
-
-        st.dataframe(
-            branch_display,
-            use_container_width=True,
-            hide_index=True,
-            height=400
-        )
-    else:
-        st.info("No data found for the selected filters.")
-
-with tab3:
-    st.markdown("<div class='section-header'>CN Details</div>", unsafe_allow_html=True)
-
-    if len(filtered_df) > 0:
-        cn_details = filtered_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'origin',
-                                   'destination', 'vehicle_no', 'vehicle_type', 'qty',
-                                   'basic_freight', 'pod_status']].copy()
-
-        cn_details['cn_date'] = cn_details['cn_date'].dt.strftime('%d-%m-%Y')
-        cn_details.columns = ['CN No', 'Date', 'Branch', 'Billing Party', 'Origin',
-                              'Destination', 'Vehicle', 'Type', 'Qty',
-                              'Billed Amount', 'POD Status']
-
-        st.dataframe(
-            cn_details,
-            use_container_width=True,
-            hide_index=True,
-            height=500
-        )
-
-        st.markdown(f"**Showing {len(cn_details):,} records**")
-    else:
-        st.info("No data found for the selected filters.")
-
-with tab4:
     st.markdown("<div class='section-header'>Unbilled CN - POD Received</div>", unsafe_allow_html=True)
     st.markdown("<p style='color: #64748b; font-size: 12px;'>CNs where Bill No is blank but POD Receipt No exists - grouped by Party and Month</p>", unsafe_allow_html=True)
 
@@ -953,11 +923,12 @@ with tab4:
         else:
             st.info("No unbilled CNs with POD received found.")
 
-with tab5:
+with tab3:
     st.markdown("<div class='section-header'>Monthly Billing Trend</div>", unsafe_allow_html=True)
 
+    # Match Billing Summary logic: count unique non-null bill_no, sum all qty/freight
     monthly_trend = df.groupby('month').agg({
-        'bill_no': 'nunique',
+        'bill_no': lambda x: x.dropna().nunique(),
         'qty': 'sum',
         'basic_freight': 'sum'
     }).reset_index()
@@ -965,10 +936,10 @@ with tab5:
     monthly_trend['month'] = monthly_trend['month'].astype(str)
     monthly_trend.columns = ['Month', 'No of Bills', 'Units', 'Billed Amount']
 
-    chart_data = monthly_trend.set_index('Month')[['Billed Amount']].tail(12)
+    chart_data = monthly_trend.set_index('Month')[['Billed Amount']].tail(6)
     st.bar_chart(chart_data)
 
-    monthly_display = monthly_trend.tail(12).copy()
+    monthly_display = monthly_trend.tail(6).copy()
     monthly_display['Billed Amount'] = monthly_display['Billed Amount'].apply(lambda x: f"₹{x:,.0f}")
 
     st.dataframe(
@@ -977,7 +948,7 @@ with tab5:
         hide_index=True
     )
 
-with tab6:
+with tab4:
     st.markdown("<div class='section-header'>Pending POD - POD Not Received</div>", unsafe_allow_html=True)
     st.markdown("<p style='color: #64748b; font-size: 12px;'>CNs where Bill No is blank, POD Receipt No is blank, and ETA < D-4 - grouped by Party and Month</p>", unsafe_allow_html=True)
 
