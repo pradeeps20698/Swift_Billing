@@ -200,7 +200,7 @@ def load_data():
             charge_weight, actual_weight, qty, basic_freight, detention,
             hamali, other_charges, penalty, total_freight, payment_received,
             deduction_lr, balance, consignee, material_detail, pod_status,
-            pod_receipt_no
+            pod_receipt_no, pod_date, unload_date
         FROM cn_data
         WHERE is_active = 'Yes'
           AND (cn_no IS NULL OR cn_no NOT LIKE 'TEST%')
@@ -211,6 +211,8 @@ def load_data():
     df['cn_date'] = pd.to_datetime(df['cn_date'])
     df['bill_date'] = pd.to_datetime(df['bill_date'])
     df['eta'] = pd.to_datetime(df['eta'])
+    df['pod_date'] = pd.to_datetime(df['pod_date'])
+    df['unload_date'] = pd.to_datetime(df['unload_date'])
     df['month'] = df['bill_date'].dt.to_period('M')
     df['is_own'] = df['vehicle_type'].str.lower().str.contains('own', na=False)
     return df
@@ -908,8 +910,8 @@ with tab3:
                 return dataframe.to_csv(index=False).encode('utf-8')
 
             # Prepare CN-wise download data
-            download_df = unbilled_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'vehicle_no', 'qty', 'basic_freight', 'pod_receipt_no']].copy()
-            download_df.columns = ['CN No', 'CN Date', 'Branch', 'Billing Party', 'Vehicle No', 'Qty', 'Basic Freight', 'POD Receipt No']
+            download_df = unbilled_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'route', 'vehicle_no', 'qty', 'basic_freight', 'pod_receipt_no']].copy()
+            download_df.columns = ['CN No', 'CN Date', 'Branch', 'Billing Party', 'Route', 'Vehicle No', 'Qty', 'Basic Freight', 'POD Receipt No']
             download_df['CN Date'] = download_df['CN Date'].dt.strftime('%d-%m-%Y')
             download_df = download_df.sort_values(['Billing Party', 'CN Date'], ascending=[True, False])
 
@@ -922,6 +924,100 @@ with tab3:
             )
         else:
             st.info("No unbilled CNs with POD received found.")
+
+        # POD Received Aging - Branch Wise Section
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<div class='section-header'>POD Received Aging - Branch Wise</div>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #64748b; font-size: 12px;'>Days taken to receive POD after Unload Date (Current Month - Most Frequent)</p>", unsafe_allow_html=True)
+
+        # Filter data: POD received (not blank), current month based on ETA
+        current_month = datetime.now().strftime('%Y-%m')
+
+        pod_aging_df = df[
+            (df['pod_receipt_no'].notna()) &
+            (df['pod_receipt_no'] != '') &
+            (df['pod_receipt_no'].astype(str).str.strip() != '') &
+            (df['eta'].notna())
+        ].copy()
+
+        # Filter for current month based on ETA
+        pod_aging_df['eta_date'] = pd.to_datetime(pod_aging_df['eta'], errors='coerce')
+        pod_aging_df['eta_month'] = pod_aging_df['eta_date'].dt.to_period('M').astype(str)
+        pod_aging_df = pod_aging_df[pod_aging_df['eta_month'] == current_month]
+
+        if len(pod_aging_df) > 0:
+            # Calculate aging: pod_date - unload_date
+            pod_aging_df['pod_date_parsed'] = pd.to_datetime(pod_aging_df['pod_date'], errors='coerce')
+            pod_aging_df['unload_date_parsed'] = pd.to_datetime(pod_aging_df['unload_date'], errors='coerce')
+            pod_aging_df['aging_days'] = (pod_aging_df['pod_date_parsed'] - pod_aging_df['unload_date_parsed']).dt.days
+
+            # Remove outliers (keep only reasonable values, e.g., -10 to 30 days)
+            pod_aging_df = pod_aging_df[
+                (pod_aging_df['aging_days'].notna()) &
+                (pod_aging_df['aging_days'] >= -10) &
+                (pod_aging_df['aging_days'] <= 30)
+            ]
+
+            # Group by branch and find most frequent (mode) aging days
+            branch_aging = []
+            for branch in pod_aging_df['branch'].dropna().unique():
+                branch_data = pod_aging_df[pod_aging_df['branch'] == branch]['aging_days']
+                if len(branch_data) > 0:
+                    # Get mode (most frequent value)
+                    mode_val = branch_data.mode()
+                    if len(mode_val) > 0:
+                        most_frequent = int(mode_val.iloc[0])
+                        count = len(branch_data)
+                        branch_aging.append({
+                            'Branch': branch,
+                            'Most Frequent Days': most_frequent,
+                            'Count': count
+                        })
+
+            if branch_aging:
+                branch_aging_df = pd.DataFrame(branch_aging)
+                # Sort by most frequent days
+                branch_aging_df = branch_aging_df.sort_values('Most Frequent Days', ascending=True)
+
+                # Build HTML table
+                html_parts = []
+                html_parts.append("<div style='overflow-x: auto;'>")
+                html_parts.append("<table style='width: 100%; border-collapse: collapse; border: 2px solid #3b82f6;'>")
+                html_parts.append("<thead>")
+                html_parts.append("<tr style='background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);'>")
+                html_parts.append("<th style='padding: 12px; text-align: left; color: white; border: 1px solid #3b82f6;'>Branch</th>")
+                html_parts.append("<th style='padding: 12px; text-align: center; color: white; border: 1px solid #3b82f6;'>Days to Receive POD (Most Frequent)</th>")
+                html_parts.append("</tr>")
+                html_parts.append("</thead>")
+                html_parts.append("<tbody>")
+
+                for idx, row in branch_aging_df.iterrows():
+                    days = row['Most Frequent Days']
+                    branch_name = row['Branch']
+
+                    # Color coding based on days
+                    if days <= 0:
+                        day_text = "Same Day" if days == 0 else f"{abs(days)} days early"
+                        day_color = "#10b981"  # Green
+                    elif days <= 3:
+                        day_text = f"{days} days"
+                        day_color = "#f59e0b"  # Yellow/Orange
+                    else:
+                        day_text = f"{days} days"
+                        day_color = "#ef4444"  # Red
+
+                    bg_color = "#162544" if idx % 2 == 0 else "#1a2d4d"
+                    html_parts.append(f"<tr style='background-color: {bg_color};'>")
+                    html_parts.append(f"<td style='padding: 10px; border: 1px solid #3b82f6; color: white; font-weight: bold;'>{branch_name}</td>")
+                    html_parts.append(f"<td style='padding: 10px; border: 1px solid #3b82f6; text-align: center; color: {day_color}; font-weight: bold;'>{day_text}</td>")
+                    html_parts.append("</tr>")
+
+                html_parts.append("</tbody></table></div>")
+                st.markdown("".join(html_parts), unsafe_allow_html=True)
+            else:
+                st.info("No branch aging data available for current month.")
+        else:
+            st.info("No POD received data available for current month.")
 
 with tab2:
     st.markdown("<div class='section-header'>Monthly Billing Trend</div>", unsafe_allow_html=True)

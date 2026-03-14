@@ -35,7 +35,7 @@ def load_unbilled_data():
     conn = get_connection()
     query = """
         SELECT
-            cn_no, cn_date, branch, billing_party, bill_no,
+            cn_no, cn_date, branch, billing_party, route, bill_no,
             vehicle_no, qty, basic_freight, pod_receipt_no
         FROM cn_data
         WHERE is_active = 'Yes'
@@ -301,8 +301,8 @@ def generate_csv_report(unbilled_df):
         return None
 
     # Prepare data for CSV - CN-wise details
-    export_df = unbilled_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'vehicle_no', 'qty', 'basic_freight', 'pod_receipt_no']].copy()
-    export_df.columns = ['CN No', 'CN Date', 'Branch', 'Billing Party', 'Vehicle No', 'Qty', 'Basic Freight', 'POD Receipt No']
+    export_df = unbilled_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'route', 'vehicle_no', 'qty', 'basic_freight', 'pod_receipt_no']].copy()
+    export_df.columns = ['CN No', 'CN Date', 'Branch', 'Billing Party', 'Route', 'Vehicle No', 'Qty', 'Basic Freight', 'POD Receipt No']
 
     # Format date
     export_df['CN Date'] = pd.to_datetime(export_df['CN Date']).dt.strftime('%d-%m-%Y')
