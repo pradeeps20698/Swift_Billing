@@ -457,8 +457,8 @@ st.markdown("<br>", unsafe_allow_html=True)
 # Tabs
 tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Client-Wise Summary",
+    "📈 Monthly/Day Trend",
     "💰 Unbilled CNs",
-    "📈 Monthly Trend",
     "📦 Pending POD"
 ])
 
@@ -670,7 +670,7 @@ with tab1:
     else:
         st.info("No data found for the selected filters.")
 
-with tab2:
+with tab3:
     st.markdown("<div class='section-header'>Unbilled CN - POD Received</div>", unsafe_allow_html=True)
     st.markdown("<p style='color: #64748b; font-size: 12px;'>CNs where Bill No is blank but POD Receipt No exists - grouped by Party and Month</p>", unsafe_allow_html=True)
 
@@ -923,30 +923,225 @@ with tab2:
         else:
             st.info("No unbilled CNs with POD received found.")
 
-with tab3:
+with tab2:
     st.markdown("<div class='section-header'>Monthly Billing Trend</div>", unsafe_allow_html=True)
 
-    # Match Billing Summary logic: count unique non-null bill_no, sum all qty/freight
+    # Split data into Pooja and Rohit categories
+    pooja_data = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+    rohit_data = df[df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+
+    # Total monthly trend
     monthly_trend = df.groupby('month').agg({
         'bill_no': lambda x: x.dropna().nunique(),
         'qty': 'sum',
         'basic_freight': 'sum'
     }).reset_index()
-
     monthly_trend['month'] = monthly_trend['month'].astype(str)
     monthly_trend.columns = ['Month', 'No of Bills', 'Units', 'Billed Amount']
 
-    chart_data = monthly_trend.set_index('Month')[['Billed Amount']].tail(6)
-    st.bar_chart(chart_data)
+    # Pooja Ma'am monthly trend
+    pooja_trend = pooja_data.groupby('month').agg({
+        'bill_no': lambda x: x.dropna().nunique(),
+        'qty': 'sum',
+        'basic_freight': 'sum'
+    }).reset_index()
+    pooja_trend['month'] = pooja_trend['month'].astype(str)
+    pooja_trend.columns = ['Month', 'No of Bills', 'Units', 'Billed Amount']
 
-    monthly_display = monthly_trend.tail(6).copy()
-    monthly_display['Billed Amount'] = monthly_display['Billed Amount'].apply(lambda x: f"₹{x:,.0f}")
+    # Rohit Sir monthly trend
+    rohit_trend = rohit_data.groupby('month').agg({
+        'bill_no': lambda x: x.dropna().nunique(),
+        'qty': 'sum',
+        'basic_freight': 'sum'
+    }).reset_index()
+    rohit_trend['month'] = rohit_trend['month'].astype(str)
+    rohit_trend.columns = ['Month', 'No of Bills', 'Units', 'Billed Amount']
 
-    st.dataframe(
-        monthly_display,
-        use_container_width=True,
-        hide_index=True
+    # Combine Pooja and Rohit into stacked bar chart with values
+    import altair as alt
+
+    pooja_chart = pooja_trend.set_index('Month')[['Billed Amount']].tail(6)
+    pooja_chart.columns = ['Pooja Ma\'am']
+
+    rohit_chart = rohit_trend.set_index('Month')[['Billed Amount']].tail(6)
+    rohit_chart.columns = ['Rohit Sir']
+
+    # Merge Pooja and Rohit data into one dataframe
+    combined_chart = pooja_chart.join(rohit_chart, how='outer').fillna(0)
+    combined_chart['Total'] = combined_chart['Pooja Ma\'am'] + combined_chart['Rohit Sir']
+    combined_chart = combined_chart.reset_index()
+
+    # Create labels in Lakhs
+    combined_chart['Total_Label'] = combined_chart['Total'].apply(lambda x: f"₹{x/100000:.1f}L")
+
+    # Melt data for stacked bar chart
+    chart_data = combined_chart.melt(
+        id_vars=['Month', 'Total', 'Total_Label'],
+        value_vars=['Rohit Sir', 'Pooja Ma\'am'],
+        var_name='Category',
+        value_name='Amount'
     )
+    chart_data['Label'] = chart_data['Amount'].apply(lambda x: f"₹{x/100000:.1f}L")
+
+    # Create stacked bar chart with Altair
+    bars = alt.Chart(chart_data).mark_bar().encode(
+        x=alt.X('Month:N', sort=None, title='Month', axis=alt.Axis(labelAngle=0)),
+        y=alt.Y('Amount:Q', title='Billed Amount', stack='zero'),
+        color=alt.Color('Category:N', scale=alt.Scale(
+            domain=['Pooja Ma\'am', 'Rohit Sir'],
+            range=['#a855f7', '#06b6d4']
+        ), legend=alt.Legend(title='Category', orient='top')),
+        order=alt.Order('Category:N', sort='descending')
+    ).properties(height=400)
+
+    # Add value labels inside bars
+    text = alt.Chart(chart_data).mark_text(
+        align='center',
+        baseline='middle',
+        color='white',
+        fontSize=12,
+        fontWeight='bold'
+    ).encode(
+        x=alt.X('Month:N', sort=None),
+        y=alt.Y('Amount:Q', stack='zero', bandPosition=0.5),
+        text='Label:N',
+        order=alt.Order('Category:N', sort='descending')
+    )
+
+    # Add total labels on top of stacked bars
+    total_data = combined_chart[['Month', 'Total', 'Total_Label']].copy()
+    total_text = alt.Chart(total_data).mark_text(
+        align='center',
+        baseline='bottom',
+        dy=-5,
+        color='#10b981',
+        fontSize=14,
+        fontWeight='bold'
+    ).encode(
+        x=alt.X('Month:N', sort=None),
+        y=alt.Y('Total:Q'),
+        text='Total_Label:N'
+    )
+
+    # Combine chart and labels
+    final_chart = (bars + text + total_text).configure_axis(
+        labelColor='#e2e8f0',
+        titleColor='#e2e8f0',
+        gridColor='#1e3a5f'
+    ).configure_view(
+        strokeWidth=0
+    ).configure_legend(
+        labelColor='#e2e8f0',
+        titleColor='#e2e8f0'
+    )
+
+    st.altair_chart(final_chart, use_container_width=True)
+
+    # Day-wise Billing Graph (based on sidebar month selection)
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.session_state.selected_month:
+        selected_month_display = datetime.strptime(st.session_state.selected_month, "%Y-%m").strftime("%B %Y")
+        st.markdown(f"<div class='section-header'>Day-wise Billing - {selected_month_display}</div>", unsafe_allow_html=True)
+
+        # Filter data for selected month
+        daywise_df = df[df['month'].astype(str) == st.session_state.selected_month].copy()
+        daywise_df['bill_day'] = daywise_df['bill_date'].dt.day
+
+        # Split into Pooja and Rohit
+        daywise_pooja = daywise_df[~daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+        daywise_rohit = daywise_df[daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+
+        # Group by day for Pooja
+        pooja_daily = daywise_pooja.groupby('bill_day').agg({'basic_freight': 'sum'}).reset_index()
+        pooja_daily.columns = ['Day', 'Pooja Ma\'am']
+
+        # Group by day for Rohit
+        rohit_daily = daywise_rohit.groupby('bill_day').agg({'basic_freight': 'sum'}).reset_index()
+        rohit_daily.columns = ['Day', 'Rohit Sir']
+
+        # Get the actual number of days in the month
+        import calendar
+        try:
+            year, month_num = map(int, st.session_state.selected_month.split('-'))
+            max_day = calendar.monthrange(year, month_num)[1]
+        except:
+            max_day = 31
+
+        # Fill missing days with 0
+        all_days = pd.DataFrame({'Day': range(1, max_day + 1)})
+        daily_combined = all_days.merge(pooja_daily, on='Day', how='left').merge(rohit_daily, on='Day', how='left').fillna(0)
+        daily_combined['Total'] = daily_combined['Pooja Ma\'am'] + daily_combined['Rohit Sir']
+
+        # Filter out days with no billing
+        daily_combined = daily_combined[daily_combined['Total'] > 0]
+
+        daily_combined['Total_Label'] = daily_combined['Total'].apply(lambda x: f"₹{x/100000:.1f}L" if x > 0 else '')
+        daily_combined['Day'] = daily_combined['Day'].astype(int).astype(str)
+
+        # Melt data for stacked bar chart
+        daily_chart_data = daily_combined.melt(
+            id_vars=['Day', 'Total', 'Total_Label'],
+            value_vars=['Rohit Sir', 'Pooja Ma\'am'],
+            var_name='Category',
+            value_name='Amount'
+        )
+        daily_chart_data['Label'] = daily_chart_data['Amount'].apply(lambda x: f"₹{x/100000:.1f}L" if x > 0 else '')
+
+        # Create stacked bar chart with Altair
+        day_bars = alt.Chart(daily_chart_data).mark_bar().encode(
+            x=alt.X('Day:N', sort=None, title='Day', axis=alt.Axis(labelAngle=0)),
+            y=alt.Y('Amount:Q', title='Billed Amount', stack='zero'),
+            color=alt.Color('Category:N', scale=alt.Scale(
+                domain=['Pooja Ma\'am', 'Rohit Sir'],
+                range=['#a855f7', '#06b6d4']
+            ), legend=alt.Legend(title='Category', orient='top')),
+            order=alt.Order('Category:N', sort='descending')
+        ).properties(height=350)
+
+        # Add total labels on top of stacked bars
+        total_data = daily_combined[['Day', 'Total', 'Total_Label']].copy()
+        day_total_text = alt.Chart(total_data).mark_text(
+            align='center',
+            baseline='bottom',
+            dy=-3,
+            color='#10b981',
+            fontSize=10,
+            fontWeight='bold'
+        ).encode(
+            x=alt.X('Day:N', sort=None),
+            y=alt.Y('Total:Q'),
+            text='Total_Label:N'
+        )
+
+        # Combine chart and labels
+        day_final_chart = (day_bars + day_total_text).configure_axis(
+            labelColor='#e2e8f0',
+            titleColor='#e2e8f0',
+            gridColor='#1e3a5f'
+        ).configure_view(
+            strokeWidth=0
+        ).configure_legend(
+            labelColor='#e2e8f0',
+            titleColor='#e2e8f0'
+        )
+
+        st.altair_chart(day_final_chart, use_container_width=True)
+
+        # Show summary metrics for the selected month
+        total_daywise = daily_combined['Total'].sum()
+        total_pooja = daily_combined['Pooja Ma\'am'].sum()
+        total_rohit = daily_combined['Rohit Sir'].sum()
+        days_with_billing = len(daily_combined)
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Billing", f"₹{total_daywise/100000:.2f}L")
+        with col2:
+            st.metric("Pooja Ma'am", f"₹{total_pooja/100000:.2f}L")
+        with col3:
+            st.metric("Rohit Sir", f"₹{total_rohit/100000:.2f}L")
+        with col4:
+            st.metric("Days with Billing", f"{days_with_billing}")
 
 with tab4:
     st.markdown("<div class='section-header'>Pending POD - POD Not Received</div>", unsafe_allow_html=True)
