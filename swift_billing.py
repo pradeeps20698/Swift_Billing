@@ -203,6 +203,8 @@ def load_data():
             pod_receipt_no
         FROM cn_data
         WHERE is_active = 'Yes'
+          AND (cn_no IS NULL OR cn_no NOT LIKE 'TEST%')
+          AND NOT (billing_party = 'Ranjeet Singh Logistics' AND basic_freight = 65000)
         ORDER BY bill_date DESC NULLS LAST
     """
     df = pd.read_sql(query, conn)
@@ -981,12 +983,12 @@ with tab6:
 
     # Get CNs with pending POD (POD not received) from FULL dataset
     # Filter: Bill No blank + POD Receipt No blank + ETA < D-4
-    d_minus_4 = datetime.now() - timedelta(days=4)
+    d_minus_4 = (datetime.now() - timedelta(days=4)).date()
 
     pending_pod_df = df[
-        ((df['bill_no'].isna()) | (df['bill_no'] == '') | (df['bill_no'].astype(str).str.strip() == '')) &
-        ((df['pod_receipt_no'].isna()) | (df['pod_receipt_no'] == '') | (df['pod_receipt_no'].astype(str).str.strip() == '')) &
-        (df['eta'].notna()) & (df['eta'] < d_minus_4)
+        ((df['bill_no'].isna()) | (df['bill_no'] == '')) &
+        ((df['pod_receipt_no'].isna()) | (df['pod_receipt_no'] == '')) &
+        (df['eta'].notna()) & (pd.to_datetime(df['eta'], errors='coerce').dt.date < d_minus_4)
     ].copy()
 
     pending_pod_df['cn_month'] = pending_pod_df['cn_date'].dt.to_period('M')
