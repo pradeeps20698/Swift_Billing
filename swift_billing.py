@@ -40,6 +40,16 @@ def send_mismatch_alert(month, dashboard_data, db_data, mismatch_details):
         msg['From'] = sender_email
         msg['To'] = "mis@srlpl.in"
 
+        # Pre-compute mismatch classes
+        bills_class = "mismatch" if dashboard_data['bills'] != db_data['bills'] else ""
+        units_class = "mismatch" if dashboard_data['units'] != db_data['units'] else ""
+        amount_class = "mismatch" if abs(dashboard_data['amount'] - db_data['amount']) > 1 else ""
+
+        # Pre-compute differences
+        bills_diff = db_data['bills'] - dashboard_data['bills']
+        units_diff = db_data['units'] - dashboard_data['units']
+        amount_diff = db_data['amount'] - dashboard_data['amount']
+
         html_content = f"""
         <html>
         <head>
@@ -71,19 +81,19 @@ def send_mismatch_alert(month, dashboard_data, db_data, mismatch_details):
                         <td>Total Bills</td>
                         <td>{dashboard_data['bills']}</td>
                         <td>{db_data['bills']}</td>
-                        <td class="{'mismatch' if dashboard_data['bills'] != db_data['bills'] else ''}">{db_data['bills'] - dashboard_data['bills']}</td>
+                        <td class="{bills_class}">{bills_diff}</td>
                     </tr>
                     <tr>
                         <td>Total Units</td>
                         <td>{dashboard_data['units']:,.0f}</td>
                         <td>{db_data['units']:,.0f}</td>
-                        <td class="{'mismatch' if dashboard_data['units'] != db_data['units'] else ''}">{db_data['units'] - dashboard_data['units']:,.0f}</td>
+                        <td class="{units_class}">{units_diff:,.0f}</td>
                     </tr>
                     <tr>
                         <td>Total Amount</td>
                         <td>₹{dashboard_data['amount']:,.2f}</td>
                         <td>₹{db_data['amount']:,.2f}</td>
-                        <td class="{'mismatch' if abs(dashboard_data['amount'] - db_data['amount']) > 1 else ''}"}>₹{db_data['amount'] - dashboard_data['amount']:,.2f}</td>
+                        <td class="{amount_class}">₹{amount_diff:,.2f}</td>
                     </tr>
                 </table>
 
