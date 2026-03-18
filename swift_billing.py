@@ -1473,8 +1473,8 @@ with tab4:
             def convert_pending_pod_to_csv(dataframe):
                 return dataframe.to_csv(index=False).encode('utf-8')
 
-            download_df = pending_pod_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'consignee', 'destination', 'vehicle_no', 'qty', 'basic_freight']].copy()
-            download_df.columns = ['CN No', 'CN Date', 'Branch', 'Billing Party', 'Consignee', 'Destination', 'Vehicle No', 'Qty', 'Basic Freight']
+            download_df = pending_pod_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'origin', 'consignee', 'destination', 'vehicle_no', 'qty', 'basic_freight']].copy()
+            download_df.columns = ['CN No', 'CN Date', 'Branch', 'Billing Party', 'Origin', 'Consignee', 'Destination', 'Vehicle No', 'Qty', 'Basic Freight']
             download_df['CN Date'] = download_df['CN Date'].dt.strftime('%d-%m-%Y')
             download_df = download_df.sort_values(['Billing Party', 'CN Date'], ascending=[True, False])
 
