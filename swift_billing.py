@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import psycopg2
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -18,6 +21,209 @@ def get_config(key):
         return st.secrets["database"][key]
     except:
         return os.getenv(key)
+
+# Send data mismatch alert email
+def send_mismatch_alert(month, dashboard_data, db_data, mismatch_details):
+    """Send email alert when dashboard and database data don't match"""
+    try:
+        smtp_server = get_config("SMTP_SERVER")
+        smtp_port = int(get_config("SMTP_PORT") or 587)
+        sender_email = get_config("SENDER_EMAIL")
+        sender_password = get_config("SENDER_PASSWORD")
+
+        if not all([smtp_server, sender_email, sender_password]):
+            print("SMTP config missing, cannot send alert")
+            return False
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"⚠️ Dashboard Data Mismatch Alert - {month}"
+        msg['From'] = sender_email
+        msg['To'] = "mis@srlpl.in"
+
+        html_content = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; }}
+                .alert {{ background-color: #fee2e2; border: 2px solid #ef4444; padding: 20px; border-radius: 10px; }}
+                table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
+                th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
+                th {{ background-color: #1e3a5f; color: white; }}
+                .mismatch {{ background-color: #fef3c7; }}
+                h2 {{ color: #dc2626; }}
+            </style>
+        </head>
+        <body>
+            <div class="alert">
+                <h2>⚠️ Dashboard Data Mismatch Detected</h2>
+                <p><strong>Month:</strong> {month}</p>
+                <p><strong>Time:</strong> {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</p>
+
+                <h3>Summary Comparison:</h3>
+                <table>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Dashboard</th>
+                        <th>Database</th>
+                        <th>Difference</th>
+                    </tr>
+                    <tr>
+                        <td>Total Bills</td>
+                        <td>{dashboard_data['bills']}</td>
+                        <td>{db_data['bills']}</td>
+                        <td class="{'mismatch' if dashboard_data['bills'] != db_data['bills'] else ''}">{db_data['bills'] - dashboard_data['bills']}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Units</td>
+                        <td>{dashboard_data['units']:,.0f}</td>
+                        <td>{db_data['units']:,.0f}</td>
+                        <td class="{'mismatch' if dashboard_data['units'] != db_data['units'] else ''}">{db_data['units'] - dashboard_data['units']:,.0f}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Amount</td>
+                        <td>₹{dashboard_data['amount']:,.2f}</td>
+                        <td>₹{db_data['amount']:,.2f}</td>
+                        <td class="{'mismatch' if abs(dashboard_data['amount'] - db_data['amount']) > 1 else ''}"}>₹{db_data['amount'] - dashboard_data['amount']:,.2f}</td>
+                    </tr>
+                </table>
+
+                <h3>Party-wise Mismatches:</h3>
+                <table>
+                    <tr>
+                        <th>Billing Party</th>
+                        <th>Dashboard Bills</th>
+                        <th>DB Bills</th>
+                        <th>Dashboard Amt</th>
+                        <th>DB Amt</th>
+                    </tr>
+                    {mismatch_details}
+                </table>
+
+                <p style="color: #dc2626; font-weight: bold;">Please check the dashboard caching or data loading logic.</p>
+            </div>
+        </body>
+        </html>
+        """
+
+        msg.attach(MIMEText(html_content, 'html'))
+
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, "mis@srlpl.in", msg.as_string())
+
+        return True
+    except Exception as e:
+        print(f"Failed to send mismatch alert: {e}")
+        return False
+
+# Validate dashboard data against database
+def validate_dashboard_data(dashboard_df, selected_month):
+    """Compare dashboard totals with fresh database query"""
+    try:
+        if selected_month is None or dashboard_df is None or len(dashboard_df) == 0:
+            return True  # Skip validation if no data
+
+        # Parse month for query
+        year_month = selected_month  # Format: "2026-03"
+        start_date = f"{year_month}-01"
+        # Calculate end date (first day of next month)
+        year, month = map(int, year_month.split('-'))
+        if month == 12:
+            end_date = f"{year + 1}-01-01"
+        else:
+            end_date = f"{year}-{month + 1:02d}-01"
+
+        # Fresh database query with same filters as dashboard
+        conn = psycopg2.connect(
+            host=get_config("DB_HOST"),
+            user=get_config("DB_USER"),
+            password=get_config("DB_PASSWORD"),
+            database=get_config("DB_NAME"),
+            port=get_config("DB_PORT") or 5432
+        )
+
+        query = f"""
+            SELECT
+                billing_party,
+                COUNT(DISTINCT bill_no) as bill_count,
+                SUM(qty) as total_qty,
+                SUM(basic_freight) as total_freight
+            FROM cn_data
+            WHERE is_active = 'Yes'
+              AND (cn_no IS NULL OR cn_no NOT LIKE 'TEST%')
+              AND NOT (billing_party = 'Ranjeet Singh Logistics' AND basic_freight = 65000)
+              AND bill_date >= '{start_date}'
+              AND bill_date < '{end_date}'
+            GROUP BY billing_party
+            ORDER BY billing_party
+        """
+
+        db_df = pd.read_sql(query, conn)
+        conn.close()
+
+        # Calculate dashboard totals
+        dashboard_summary = dashboard_df.groupby('billing_party').agg({
+            'bill_no': lambda x: x.dropna().nunique(),
+            'qty': 'sum',
+            'basic_freight': 'sum'
+        }).reset_index()
+
+        dashboard_totals = {
+            'bills': dashboard_df['bill_no'].dropna().nunique(),
+            'units': dashboard_df['qty'].sum(),
+            'amount': dashboard_df['basic_freight'].sum()
+        }
+
+        db_totals = {
+            'bills': db_df['bill_count'].sum(),
+            'units': db_df['total_qty'].sum(),
+            'amount': db_df['total_freight'].sum()
+        }
+
+        # Check for mismatch (allow small floating point differences)
+        has_mismatch = (
+            dashboard_totals['bills'] != db_totals['bills'] or
+            abs(dashboard_totals['units'] - db_totals['units']) > 0.01 or
+            abs(dashboard_totals['amount'] - db_totals['amount']) > 1
+        )
+
+        if has_mismatch:
+            # Build mismatch details
+            mismatch_rows = []
+            for _, db_row in db_df.iterrows():
+                party = db_row['billing_party']
+                dash_row = dashboard_summary[dashboard_summary['billing_party'] == party]
+
+                if len(dash_row) > 0:
+                    dash_bills = dash_row['bill_no'].values[0]
+                    dash_amt = dash_row['basic_freight'].values[0]
+                else:
+                    dash_bills = 0
+                    dash_amt = 0
+
+                if dash_bills != db_row['bill_count'] or abs(dash_amt - db_row['total_freight']) > 1:
+                    mismatch_rows.append(f"""
+                        <tr class="mismatch">
+                            <td>{party}</td>
+                            <td>{dash_bills}</td>
+                            <td>{db_row['bill_count']}</td>
+                            <td>₹{dash_amt:,.0f}</td>
+                            <td>₹{db_row['total_freight']:,.0f}</td>
+                        </tr>
+                    """)
+
+            mismatch_details = "".join(mismatch_rows) if mismatch_rows else "<tr><td colspan='5'>No specific party mismatch found</td></tr>"
+
+            # Send alert email
+            send_mismatch_alert(selected_month, dashboard_totals, db_totals, mismatch_details)
+            return False
+
+        return True
+
+    except Exception as e:
+        print(f"Validation error: {e}")
+        return True  # Don't block on validation errors
 
 # Auto-refresh every 1 hour (3600000 milliseconds)
 refresh_count = st_autorefresh(interval=3600000, limit=None, key="billing_auto_refresh")
@@ -47,12 +253,16 @@ if 'df' not in st.session_state:
     st.session_state.df = None
 if 'db_api_update' not in st.session_state:
     st.session_state.db_api_update = None
+if 'validation_pending' not in st.session_state:
+    st.session_state.validation_pending = True  # Validate on first load
 
 # Auto-refresh every 1 hour: Clear session state cache and reload from database
 if refresh_count > st.session_state.refresh_count:
     st.session_state.refresh_count = refresh_count
     st.session_state.df = None  # Clear cached data
     st.cache_resource.clear()  # Clear DB connection cache
+    st.cache_data.clear()  # Clear cached data (filter_data, get_filter_options)
+    st.session_state.validation_pending = True  # Trigger validation after auto-refresh
 
 # Custom CSS for dark theme
 st.markdown("""
@@ -248,9 +458,11 @@ def on_search_change():
 
 def refresh_data():
     st.cache_resource.clear()  # Clear cached connection
+    st.cache_data.clear()  # Clear cached data (filter_data, get_filter_options)
     st.session_state.df = load_data()
     st.session_state.last_db_refresh = datetime.now()
     st.session_state.db_api_update = get_db_last_update()
+    st.session_state.validation_pending = True  # Trigger validation after refresh
     st.success("Data refreshed from database!")
 
 def clear_filters():
@@ -375,6 +587,13 @@ filtered_df = filter_data(
     st.session_state.selected_branch,
     st.session_state.search_query
 )
+
+# Validate data against database (only when validation is pending and no party/branch filter)
+if st.session_state.validation_pending and st.session_state.selected_party == "All" and st.session_state.selected_branch == "All":
+    is_valid = validate_dashboard_data(filtered_df, st.session_state.selected_month)
+    st.session_state.validation_pending = False
+    if not is_valid:
+        st.warning("⚠️ Data mismatch detected! Alert email sent to mis@srlpl.in")
 
 # Main content
 st.markdown("<h1 style='text-align: center; color: white;'>🧾 Swift Billing Dashboard</h1>", unsafe_allow_html=True)
