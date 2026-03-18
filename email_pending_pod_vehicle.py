@@ -407,7 +407,8 @@ def send_all_vehicle_reports():
     cc_emails = [
         "shyam.wadhwa@srlpl.in",
         "headops@srlpl.in",
-        "mis@srlpl.in"
+        "mis@srlpl.in",
+        "hr01@srlpl.in"
     ]
 
     # ========== MAIL 6: VISHAL ==========

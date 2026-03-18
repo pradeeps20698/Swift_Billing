@@ -377,7 +377,8 @@ def send_all_zone_reports():
         "ns@srlpl.in",
         "headops@srlpl.in",
         "mis@srlpl.in",
-        "mis03@srlpl.in"
+        "mis03@srlpl.in",
+        "hr01@srlpl.in"
     ]
 
     # ========== MAIL 3: West Zone ==========
