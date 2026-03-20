@@ -160,7 +160,7 @@ def validate_dashboard_data(dashboard_df, selected_month):
                 SUM(qty) as total_qty,
                 SUM(basic_freight) as total_freight
             FROM cn_data
-            WHERE is_active = 'Yes'
+            WHERE (is_active = true OR is_active::text = 'Yes')
               AND (cn_no IS NULL OR cn_no NOT LIKE 'TEST%')
               AND NOT (billing_party = 'Ranjeet Singh Logistics' AND basic_freight = 65000)
               AND bill_date >= '{start_date}'
@@ -422,7 +422,7 @@ def load_data():
             deduction_lr, balance, consignee, material_detail, pod_status,
             pod_receipt_no, pod_date, unload_date
         FROM cn_data
-        WHERE is_active = 'Yes'
+        WHERE (is_active = true OR is_active::text = 'Yes')
           AND (cn_no IS NULL OR cn_no NOT LIKE 'TEST%')
           AND NOT (billing_party = 'Ranjeet Singh Logistics' AND basic_freight = 65000)
         ORDER BY bill_date DESC NULLS LAST
@@ -440,7 +440,7 @@ def load_data():
 # Get last API update time from database
 def get_db_last_update():
     conn = get_connection()
-    query = "SELECT MAX(updated_at) FROM cn_data WHERE is_active = 'Yes'"
+    query = "SELECT MAX(updated_at) FROM cn_data WHERE (is_active = true OR is_active::text = 'Yes')"
     result = pd.read_sql(query, conn)
     last_update = result.iloc[0, 0]
     return last_update

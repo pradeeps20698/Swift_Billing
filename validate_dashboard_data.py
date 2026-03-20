@@ -35,7 +35,7 @@ def get_dashboard_data(conn, year_month):
         SELECT
             billing_party, bill_no, qty, basic_freight
         FROM cn_data
-        WHERE is_active = 'Yes'
+        WHERE (is_active = true OR is_active::text = 'Yes')
           AND (cn_no IS NULL OR cn_no NOT LIKE 'TEST%')
           AND NOT (billing_party = 'Ranjeet Singh Logistics' AND basic_freight = 65000)
           AND bill_date >= '{year_month}-01'
@@ -65,7 +65,7 @@ def get_direct_db_totals(conn, year_month):
             SUM(qty) as total_qty,
             SUM(basic_freight) as total_freight
         FROM cn_data
-        WHERE is_active = 'Yes'
+        WHERE (is_active = true OR is_active::text = 'Yes')
           AND (cn_no IS NULL OR cn_no NOT LIKE 'TEST%')
           AND NOT (billing_party = 'Ranjeet Singh Logistics' AND basic_freight = 65000)
           AND bill_date >= '{year_month}-01'

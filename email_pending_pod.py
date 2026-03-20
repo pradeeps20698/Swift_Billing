@@ -75,7 +75,7 @@ def load_pending_pod_data():
             cn_no, cn_date, branch, billing_party, origin, destination,
             route, vehicle_no, qty, basic_freight, consignee, eta
         FROM cn_data
-        WHERE is_active = 'Yes'
+        WHERE (is_active = true OR is_active::text = 'Yes')
         ORDER BY cn_date DESC
     """
     df = pd.read_sql(query, conn)
@@ -93,7 +93,7 @@ def load_pending_pod_data():
             route, vehicle_no, qty, basic_freight, consignee, eta,
             bill_no, pod_receipt_no
         FROM cn_data
-        WHERE is_active = 'Yes'
+        WHERE (is_active = true OR is_active::text = 'Yes')
         ORDER BY cn_date DESC
     """
     df = pd.read_sql(query, conn)

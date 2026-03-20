@@ -38,7 +38,7 @@ def load_unbilled_data():
             cn_no, cn_date, branch, billing_party, route, bill_no,
             vehicle_no, qty, basic_freight, pod_receipt_no
         FROM cn_data
-        WHERE is_active = 'Yes'
+        WHERE (is_active = true OR is_active::text = 'Yes')
         ORDER BY cn_date DESC
     """
     df = pd.read_sql(query, conn)
