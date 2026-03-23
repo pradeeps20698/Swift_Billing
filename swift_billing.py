@@ -235,16 +235,17 @@ def validate_dashboard_data(dashboard_df, selected_month):
         print(f"Validation error: {e}")
         return True  # Don't block on validation errors
 
-# Auto-refresh every 1 hour (3600000 milliseconds)
-refresh_count = st_autorefresh(interval=3600000, limit=None, key="billing_auto_refresh")
-
-# Page config
+# Page config - MUST be first Streamlit command
 st.set_page_config(
     page_title="Swift Billing Dashboard",
     page_icon="🧾",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Auto-refresh check every 5 minutes (300000 milliseconds)
+# This checks if database has new data, only refreshes when needed
+refresh_count = st_autorefresh(interval=300000, limit=None, key="billing_auto_refresh")
 
 # Initialize session state for filters
 if 'selected_month' not in st.session_state:
@@ -266,13 +267,28 @@ if 'db_api_update' not in st.session_state:
 if 'validation_pending' not in st.session_state:
     st.session_state.validation_pending = True  # Validate on first load
 
-# Auto-refresh every 1 hour: Clear session state cache and reload from database
+# Smart auto-refresh: Check if database has new data, only refresh when needed
 if refresh_count > st.session_state.refresh_count:
     st.session_state.refresh_count = refresh_count
-    st.session_state.df = None  # Clear cached data
-    st.cache_resource.clear()  # Clear DB connection cache
-    st.cache_data.clear()  # Clear cached data (filter_data, get_filter_options)
-    st.session_state.validation_pending = True  # Trigger validation after auto-refresh
+
+    # Check if database has newer data than what we're displaying
+    latest_db_update = check_for_new_data()
+    current_displayed = st.session_state.db_api_update
+
+    # Compare timestamps - refresh only if database has newer data
+    should_refresh = False
+    if latest_db_update is not None:
+        if current_displayed is None:
+            should_refresh = True  # First load
+        elif latest_db_update > current_displayed:
+            should_refresh = True  # Database has newer data
+
+    if should_refresh:
+        st.session_state.df = None  # Clear cached data
+        st.cache_resource.clear()  # Clear DB connection cache
+        st.cache_data.clear()  # Clear cached data (filter_data, get_filter_options)
+        st.session_state.validation_pending = True  # Trigger validation after auto-refresh
+        st.rerun()  # Force rerun to reload fresh data from database
 
 # Custom CSS for dark theme
 st.markdown("""
@@ -444,6 +460,26 @@ def get_db_last_update():
     result = pd.read_sql(query, conn)
     last_update = result.iloc[0, 0]
     return last_update
+
+# Check if database has new data (uncached - for auto-refresh detection)
+def check_for_new_data():
+    """Check database for new data without using cache"""
+    try:
+        conn = psycopg2.connect(
+            host=get_config("DB_HOST"),
+            user=get_config("DB_USER"),
+            password=get_config("DB_PASSWORD"),
+            database=get_config("DB_NAME"),
+            port=get_config("DB_PORT") or 5432
+        )
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(updated_at) FROM cn_data WHERE (is_active = true OR is_active::text = 'Yes')")
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else None
+    except Exception as e:
+        print(f"Error checking for new data: {e}")
+        return None
 
 # Format currency (always in Lakhs)
 def format_currency(val):
@@ -1721,6 +1757,6 @@ with tab4:
 st.markdown("---")
 db_api_time = st.session_state.db_api_update.strftime('%d-%m-%Y %H:%M:%S') if st.session_state.db_api_update else "N/A"
 st.markdown(
-    f"<p style='text-align: center; color: #64748b;'>Swift Billing Dashboard | DB Last Updated from API: {db_api_time} | Auto-refresh: Every 1 hour</p>",
+    f"<p style='text-align: center; color: #64748b;'>Swift Billing Dashboard | DB Last Updated from API: {db_api_time} | Auto-refresh: Checks every 5 min</p>",
     unsafe_allow_html=True
 )
