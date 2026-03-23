@@ -22,6 +22,27 @@ def get_config(key):
     except:
         return os.getenv(key)
 
+# Check if database has new data (uncached - for auto-refresh detection)
+# Defined early so it's available before the auto-refresh logic runs
+def check_for_new_data():
+    """Check database for new data without using cache"""
+    try:
+        conn = psycopg2.connect(
+            host=get_config("DB_HOST"),
+            user=get_config("DB_USER"),
+            password=get_config("DB_PASSWORD"),
+            database=get_config("DB_NAME"),
+            port=get_config("DB_PORT") or 5432
+        )
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(updated_at) FROM cn_data WHERE (is_active = true OR is_active::text = 'Yes')")
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else None
+    except Exception as e:
+        print(f"Error checking for new data: {e}")
+        return None
+
 # Send data mismatch alert email
 def send_mismatch_alert(month, dashboard_data, db_data, mismatch_details):
     """Send email alert when dashboard and database data don't match"""
@@ -460,26 +481,6 @@ def get_db_last_update():
     result = pd.read_sql(query, conn)
     last_update = result.iloc[0, 0]
     return last_update
-
-# Check if database has new data (uncached - for auto-refresh detection)
-def check_for_new_data():
-    """Check database for new data without using cache"""
-    try:
-        conn = psycopg2.connect(
-            host=get_config("DB_HOST"),
-            user=get_config("DB_USER"),
-            password=get_config("DB_PASSWORD"),
-            database=get_config("DB_NAME"),
-            port=get_config("DB_PORT") or 5432
-        )
-        cursor = conn.cursor()
-        cursor.execute("SELECT MAX(updated_at) FROM cn_data WHERE (is_active = true OR is_active::text = 'Yes')")
-        result = cursor.fetchone()
-        conn.close()
-        return result[0] if result else None
-    except Exception as e:
-        print(f"Error checking for new data: {e}")
-        return None
 
 # Format currency (always in Lakhs)
 def format_currency(val):
