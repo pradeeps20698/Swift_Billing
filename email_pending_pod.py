@@ -90,7 +90,7 @@ def load_pending_pod_data():
     query = """
         SELECT
             cn_no, cn_date, branch, billing_party, origin, destination,
-            route, vehicle_no, qty, basic_freight, consignee, eta,
+            route, vehicle_no, qty, basic_freight, other_charges, consignee, eta,
             bill_no, pod_receipt_no
         FROM cn_data
         WHERE (is_active = true OR is_active::text = 'Yes')
@@ -160,10 +160,12 @@ def generate_pending_pod_html(pending_df, zone_name):
     if len(pending_df) == 0:
         return f"<p>No pending POD CNs found for {zone_name} Zone.</p>"
 
-    # Calculate totals
+    # Calculate totals (for John Deere India Private Limited, include other_charges)
     total_cn = len(pending_df)
     total_qty = int(pending_df['qty'].sum())
-    total_amount = pending_df['basic_freight'].sum()
+    jd_pending = pending_df[pending_df['billing_party'] == 'John Deere India Private Limited']
+    other_pending = pending_df[pending_df['billing_party'] != 'John Deere India Private Limited']
+    total_amount = other_pending['basic_freight'].sum() + jd_pending['basic_freight'].sum() + jd_pending['other_charges'].fillna(0).sum()
 
     # Build summary by party
     summary_data = []
@@ -171,11 +173,16 @@ def generate_pending_pod_html(pending_df, zone_name):
 
     for party in parties:
         party_data = pending_df[pending_df['billing_party'] == party]
+        # For John Deere India Private Limited, include other_charges
+        if party == 'John Deere India Private Limited':
+            amount = party_data['basic_freight'].sum() + party_data['other_charges'].fillna(0).sum()
+        else:
+            amount = party_data['basic_freight'].sum()
         row = {
             'Billing Party': party,
             'Total CN': len(party_data),
             'Total Qty': int(party_data['qty'].sum()),
-            'Total Amount': party_data['basic_freight'].sum()
+            'Total Amount': amount
         }
         summary_data.append(row)
 

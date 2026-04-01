@@ -33,7 +33,7 @@ def get_dashboard_data(conn, year_month):
     # Dashboard loads data with these filters
     query = f"""
         SELECT
-            billing_party, bill_no, qty, basic_freight
+            billing_party, bill_no, qty, basic_freight, other_charges
         FROM cn_data
         WHERE (is_active = true OR is_active::text = 'Yes')
           AND (cn_no IS NULL OR cn_no NOT LIKE 'TEST%')
@@ -44,11 +44,19 @@ def get_dashboard_data(conn, year_month):
 
     df = pd.read_sql(query, conn)
 
+    # For John Deere India Private Limited, use basic_freight + other_charges
+    df['calc_amount'] = df.apply(
+        lambda row: row['basic_freight'] + (row['other_charges'] if pd.notna(row['other_charges']) else 0)
+        if row['billing_party'] == 'John Deere India Private Limited'
+        else row['basic_freight'],
+        axis=1
+    )
+
     # Dashboard groups by billing_party and counts unique bill_no
     summary = df.groupby('billing_party').agg({
         'bill_no': lambda x: x.dropna().nunique(),
         'qty': 'sum',
-        'basic_freight': 'sum'
+        'calc_amount': 'sum'
     }).reset_index()
     summary.columns = ['billing_party', 'bill_count', 'total_qty', 'total_freight']
 
@@ -57,13 +65,18 @@ def get_dashboard_data(conn, year_month):
 def get_direct_db_totals(conn, year_month):
     """
     Direct database query - counts unique bills per party
+    For John Deere India Private Limited, includes other_charges in total_freight
     """
     query = f"""
         SELECT
             billing_party,
             COUNT(DISTINCT bill_no) as bill_count,
             SUM(qty) as total_qty,
-            SUM(basic_freight) as total_freight
+            SUM(CASE
+                WHEN billing_party = 'John Deere India Private Limited'
+                THEN basic_freight + COALESCE(other_charges, 0)
+                ELSE basic_freight
+            END) as total_freight
         FROM cn_data
         WHERE (is_active = true OR is_active::text = 'Yes')
           AND (cn_no IS NULL OR cn_no NOT LIKE 'TEST%')

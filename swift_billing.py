@@ -655,9 +655,20 @@ total_bills = filtered_df['bill_no'].dropna().nunique()
 own_bills = filtered_df[filtered_df['is_own'] == True]['bill_no'].dropna().nunique()
 hire_bills = filtered_df[filtered_df['is_own'] == False]['bill_no'].dropna().nunique()
 
-total_freight = filtered_df['basic_freight'].sum()
-own_freight = filtered_df[filtered_df['is_own'] == True]['basic_freight'].sum()
-hire_freight = filtered_df[filtered_df['is_own'] == False]['basic_freight'].sum()
+# For John Deere India Private Limited, include other_charges in freight calculation
+john_deere_filtered = filtered_df[filtered_df['billing_party'] == 'John Deere India Private Limited']
+other_filtered = filtered_df[filtered_df['billing_party'] != 'John Deere India Private Limited']
+total_freight = other_filtered['basic_freight'].sum() + john_deere_filtered['basic_freight'].sum() + john_deere_filtered['other_charges'].fillna(0).sum()
+
+own_df = filtered_df[filtered_df['is_own'] == True]
+john_deere_own = own_df[own_df['billing_party'] == 'John Deere India Private Limited']
+other_own = own_df[own_df['billing_party'] != 'John Deere India Private Limited']
+own_freight = other_own['basic_freight'].sum() + john_deere_own['basic_freight'].sum() + john_deere_own['other_charges'].fillna(0).sum()
+
+hire_df = filtered_df[filtered_df['is_own'] == False]
+john_deere_hire = hire_df[hire_df['billing_party'] == 'John Deere India Private Limited']
+other_hire = hire_df[hire_df['billing_party'] != 'John Deere India Private Limited']
+hire_freight = other_hire['basic_freight'].sum() + john_deere_hire['basic_freight'].sum() + john_deere_hire['other_charges'].fillna(0).sum()
 
 total_qty = filtered_df['qty'].sum()
 own_qty = filtered_df[filtered_df['is_own'] == True]['qty'].sum()
@@ -741,7 +752,10 @@ with tab1:
         pooja_bills = pooja_df['bill_no'].nunique()
         pooja_amount = pooja_df['basic_freight'].sum()
         rohit_bills = rohit_df['bill_no'].nunique()
-        rohit_amount = rohit_df['basic_freight'].sum()
+        # For Rohit billing (includes John Deere), add other_charges for John Deere India Private Limited
+        john_deere_df = rohit_df[rohit_df['billing_party'] == 'John Deere India Private Limited']
+        other_rohit_df = rohit_df[rohit_df['billing_party'] != 'John Deere India Private Limited']
+        rohit_amount = other_rohit_df['basic_freight'].sum() + john_deere_df['basic_freight'].sum() + john_deere_df['other_charges'].fillna(0).sum()
 
         # Display Pooja and Rohit billing boxes
         col_pooja, col_rohit = st.columns(2)
@@ -805,10 +819,17 @@ with tab1:
                 return 'Others'
 
         # Get client summary - count unique bill numbers
+        # For John Deere India Private Limited, use basic_freight + other_charges
+        filtered_df['calc_amount'] = filtered_df.apply(
+            lambda row: row['basic_freight'] + (row['other_charges'] if pd.notna(row['other_charges']) else 0)
+            if row['billing_party'] == 'John Deere India Private Limited'
+            else row['basic_freight'],
+            axis=1
+        )
         client_summary = filtered_df.groupby('billing_party').agg({
             'bill_no': 'nunique',
             'qty': 'sum',
-            'basic_freight': 'sum'
+            'calc_amount': 'sum'
         }).reset_index()
         client_summary.columns = ['Billing Party', 'No of Bills', 'Units', 'Basic Freight']
 
@@ -973,10 +994,14 @@ with tab3:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
+        # For John Deere India Private Limited, include other_charges
+        jd_unbilled = unbilled_df[unbilled_df['billing_party'] == 'John Deere India Private Limited']
+        other_unbilled = unbilled_df[unbilled_df['billing_party'] != 'John Deere India Private Limited']
+        total_unbilled_amount = other_unbilled['basic_freight'].sum() + jd_unbilled['basic_freight'].sum() + jd_unbilled['other_charges'].fillna(0).sum()
         st.markdown(f"""
         <div class="metric-card metric-card-green">
             <div class="metric-title">Total Unbilled Amount</div>
-            <div class="metric-value">{format_currency(unbilled_df['basic_freight'].sum())}</div>
+            <div class="metric-value">{format_currency(total_unbilled_amount)}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1022,7 +1047,11 @@ with tab3:
 
                     row[f'{month_label}_CN'] = len(month_data)
                     row[f'{month_label}_Qty'] = int(month_data['qty'].sum())
-                    row[f'{month_label}_Amt'] = month_data['basic_freight'].sum()
+                    # For John Deere India Private Limited, use basic_freight + other_charges
+                    if party == 'John Deere India Private Limited':
+                        row[f'{month_label}_Amt'] = month_data['basic_freight'].sum() + month_data['other_charges'].fillna(0).sum()
+                    else:
+                        row[f'{month_label}_Amt'] = month_data['basic_freight'].sum()
 
                 # Calculate total amount for sorting
                 total_amt = 0
@@ -1292,29 +1321,39 @@ with tab2:
     pooja_data = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
     rohit_data = df[df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
 
+    # For John Deere India Private Limited, use basic_freight + other_charges
+    df['trend_amount'] = df.apply(
+        lambda row: row['basic_freight'] + (row['other_charges'] if pd.notna(row['other_charges']) else 0)
+        if row['billing_party'] == 'John Deere India Private Limited'
+        else row['basic_freight'],
+        axis=1
+    )
+    pooja_data_trend = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+    rohit_data_trend = df[df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+
     # Total monthly trend
     monthly_trend = df.groupby('month').agg({
         'bill_no': lambda x: x.dropna().nunique(),
         'qty': 'sum',
-        'basic_freight': 'sum'
+        'trend_amount': 'sum'
     }).reset_index()
     monthly_trend['month'] = monthly_trend['month'].astype(str)
     monthly_trend.columns = ['Month', 'No of Bills', 'Units', 'Billed Amount']
 
     # Pooja Ma'am monthly trend
-    pooja_trend = pooja_data.groupby('month').agg({
+    pooja_trend = pooja_data_trend.groupby('month').agg({
         'bill_no': lambda x: x.dropna().nunique(),
         'qty': 'sum',
-        'basic_freight': 'sum'
+        'trend_amount': 'sum'
     }).reset_index()
     pooja_trend['month'] = pooja_trend['month'].astype(str)
     pooja_trend.columns = ['Month', 'No of Bills', 'Units', 'Billed Amount']
 
     # Rohit Sir monthly trend
-    rohit_trend = rohit_data.groupby('month').agg({
+    rohit_trend = rohit_data_trend.groupby('month').agg({
         'bill_no': lambda x: x.dropna().nunique(),
         'qty': 'sum',
-        'basic_freight': 'sum'
+        'trend_amount': 'sum'
     }).reset_index()
     rohit_trend['month'] = rohit_trend['month'].astype(str)
     rohit_trend.columns = ['Month', 'No of Bills', 'Units', 'Billed Amount']
@@ -1409,16 +1448,24 @@ with tab2:
         daywise_df = df[df['month'].astype(str) == st.session_state.selected_month].copy()
         daywise_df['bill_day'] = daywise_df['bill_date'].dt.day
 
+        # For John Deere India Private Limited, use basic_freight + other_charges
+        daywise_df['day_amount'] = daywise_df.apply(
+            lambda row: row['basic_freight'] + (row['other_charges'] if pd.notna(row['other_charges']) else 0)
+            if row['billing_party'] == 'John Deere India Private Limited'
+            else row['basic_freight'],
+            axis=1
+        )
+
         # Split into Pooja and Rohit
         daywise_pooja = daywise_df[~daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
         daywise_rohit = daywise_df[daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
 
         # Group by day for Pooja
-        pooja_daily = daywise_pooja.groupby('bill_day').agg({'basic_freight': 'sum'}).reset_index()
+        pooja_daily = daywise_pooja.groupby('bill_day').agg({'day_amount': 'sum'}).reset_index()
         pooja_daily.columns = ['Day', 'Pooja Ma\'am']
 
-        # Group by day for Rohit
-        rohit_daily = daywise_rohit.groupby('bill_day').agg({'basic_freight': 'sum'}).reset_index()
+        # Group by day for Rohit (includes John Deere with other_charges)
+        rohit_daily = daywise_rohit.groupby('bill_day').agg({'day_amount': 'sum'}).reset_index()
         rohit_daily.columns = ['Day', 'Rohit Sir']
 
         # Get the actual number of days in the month
@@ -1542,10 +1589,14 @@ with tab4:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
+        # For John Deere India Private Limited, include other_charges
+        jd_pending = pending_pod_df[pending_pod_df['billing_party'] == 'John Deere India Private Limited']
+        other_pending = pending_pod_df[pending_pod_df['billing_party'] != 'John Deere India Private Limited']
+        total_pending_amount = other_pending['basic_freight'].sum() + jd_pending['basic_freight'].sum() + jd_pending['other_charges'].fillna(0).sum()
         st.markdown(f"""
         <div class="metric-card metric-card-green">
             <div class="metric-title">Total Pending Amount</div>
-            <div class="metric-value">{format_currency(pending_pod_df['basic_freight'].sum())}</div>
+            <div class="metric-value">{format_currency(total_pending_amount)}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1591,7 +1642,11 @@ with tab4:
 
                     row[f'{month_label}_CN'] = len(month_data)
                     row[f'{month_label}_Qty'] = int(month_data['qty'].sum())
-                    row[f'{month_label}_Amt'] = month_data['basic_freight'].sum()
+                    # For John Deere India Private Limited, use basic_freight + other_charges
+                    if party == 'John Deere India Private Limited':
+                        row[f'{month_label}_Amt'] = month_data['basic_freight'].sum() + month_data['other_charges'].fillna(0).sum()
+                    else:
+                        row[f'{month_label}_Amt'] = month_data['basic_freight'].sum()
 
                 # Calculate total amount for sorting
                 total_amt = 0

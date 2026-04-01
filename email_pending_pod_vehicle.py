@@ -102,7 +102,7 @@ def load_pending_pod_data():
     query = """
         SELECT
             cn_no, cn_date, branch, billing_party, origin, destination,
-            route, vehicle_no, qty, basic_freight, consignee, eta,
+            route, vehicle_no, qty, basic_freight, other_charges, consignee, eta,
             bill_no, pod_receipt_no
         FROM cn_data
         WHERE (is_active = true OR is_active::text = 'Yes')
@@ -192,10 +192,12 @@ def generate_pending_pod_html(pending_df, group_name):
     if len(pending_df) == 0:
         return f"<p>No pending POD CNs found for {group_name}.</p>"
 
-    # Calculate totals
+    # Calculate totals (for John Deere India Private Limited, include other_charges)
     total_cn = len(pending_df)
     total_qty = int(pending_df['qty'].sum())
-    total_amount = pending_df['basic_freight'].sum()
+    jd_pending = pending_df[pending_df['billing_party'] == 'John Deere India Private Limited']
+    other_pending = pending_df[pending_df['billing_party'] != 'John Deere India Private Limited']
+    total_amount = other_pending['basic_freight'].sum() + jd_pending['basic_freight'].sum() + jd_pending['other_charges'].fillna(0).sum()
 
     # Build summary by vehicle
     summary_data = []
@@ -203,11 +205,15 @@ def generate_pending_pod_html(pending_df, group_name):
 
     for vehicle in vehicles:
         vehicle_data = pending_df[pending_df['vehicle_no'] == vehicle]
+        # For John Deere India Private Limited records, include other_charges
+        jd_vehicle = vehicle_data[vehicle_data['billing_party'] == 'John Deere India Private Limited']
+        other_vehicle = vehicle_data[vehicle_data['billing_party'] != 'John Deere India Private Limited']
+        amount = other_vehicle['basic_freight'].sum() + jd_vehicle['basic_freight'].sum() + jd_vehicle['other_charges'].fillna(0).sum()
         row = {
             'Vehicle No': vehicle,
             'Total CN': len(vehicle_data),
             'Total Qty': int(vehicle_data['qty'].sum()),
-            'Total Amount': vehicle_data['basic_freight'].sum()
+            'Total Amount': amount
         }
         summary_data.append(row)
 

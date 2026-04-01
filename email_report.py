@@ -36,7 +36,7 @@ def load_unbilled_data():
     query = """
         SELECT
             cn_no, cn_date, branch, billing_party, route, bill_no,
-            vehicle_no, qty, basic_freight, pod_receipt_no
+            vehicle_no, qty, basic_freight, other_charges, pod_receipt_no
         FROM cn_data
         WHERE (is_active = true OR is_active::text = 'Yes')
         ORDER BY cn_date DESC
@@ -116,21 +116,28 @@ def generate_summary_html(unbilled_df):
 
     for party in parties:
         party_data = unbilled_df[unbilled_df['billing_party'] == party]
+        # For John Deere India Private Limited, use basic_freight + other_charges
+        if party == 'John Deere India Private Limited':
+            amount = party_data['basic_freight'].sum() + party_data['other_charges'].fillna(0).sum()
+        else:
+            amount = party_data['basic_freight'].sum()
         row = {
             'Billing Party': party,
             'Group': get_parent_group(party),
             'Total CN': len(party_data),
             'Total Qty': int(party_data['qty'].sum()),
-            'Total Amount': party_data['basic_freight'].sum()
+            'Total Amount': amount
         }
         summary_data.append(row)
 
     summary_df = pd.DataFrame(summary_data)
 
-    # Calculate totals
+    # Calculate totals (including John Deere other_charges)
     total_cn = len(unbilled_df)
     total_qty = int(unbilled_df['qty'].sum())
-    total_amount = unbilled_df['basic_freight'].sum()
+    john_deere_data = unbilled_df[unbilled_df['billing_party'] == 'John Deere India Private Limited']
+    other_data = unbilled_df[unbilled_df['billing_party'] != 'John Deere India Private Limited']
+    total_amount = other_data['basic_freight'].sum() + john_deere_data['basic_freight'].sum() + john_deere_data['other_charges'].fillna(0).sum()
 
     # Build grouped rows with subtotals (same logic as dashboard)
     grouped_rows = []
