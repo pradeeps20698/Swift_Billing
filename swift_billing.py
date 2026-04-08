@@ -264,6 +264,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Require login + dashboard permission
+from swift_auth_child import require_dashboard_access
+_auth_user = require_dashboard_access("billing")
+
 # Auto-refresh check every 5 minutes (300000 milliseconds)
 # This checks if database has new data, only refreshes when needed
 refresh_count = st_autorefresh(interval=300000, limit=None, key="billing_auto_refresh")
