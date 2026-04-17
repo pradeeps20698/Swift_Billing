@@ -35,7 +35,7 @@ def main():
     print("\nEmails:")
     print("  Email 1: All parties EXCEPT Mahindra & John Deere")
     print("    To: billing@srlpl.in")
-    print("    CC: shyam.wadhwa@srlpl.in, ns@srlpl.in, headops@srlpl.in,")
+    print("    CC: shyam.wadhwa@srlpl.in, ns@srlpl.in, rg@srlpl.in,")
     print("        finance01@srlpl.in, mis03@srlpl.in, mis@srlpl.in")
     print("\n  Email 2: Only Mahindra & John Deere")
     print("    To: billingmahindra@gmail.com")

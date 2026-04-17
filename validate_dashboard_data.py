@@ -1,3 +1,4 @@
+\
 """
 Dashboard Data Validation Script
 Compares dashboard cache logic with fresh database query

@@ -410,7 +410,7 @@ def send_all_reports():
     cc_emails = [
         "shyam.wadhwa@srlpl.in",
         "ns@srlpl.in",
-        "headops@srlpl.in",
+        "rg@srlpl.in",
         "finance01@srlpl.in",
         "mis03@srlpl.in",
         "mis@srlpl.in"

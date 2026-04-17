@@ -413,7 +413,7 @@ def send_all_vehicle_reports():
     # Common CC recipients (different from zone emails)
     cc_emails = [
         "shyam.wadhwa@srlpl.in",
-        "headops@srlpl.in",
+        "rg@srlpl.in",
         "mis@srlpl.in",
         "hr01@srlpl.in"
     ]
