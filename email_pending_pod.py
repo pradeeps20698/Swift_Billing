@@ -382,7 +382,7 @@ def send_all_zone_reports():
     cc_emails = [
         "shyam.wadhwa@srlpl.in",
         "ns@srlpl.in",
-        "headops@srlpl.in",
+        "rg@srlpl.in",
         "mis@srlpl.in",
         "mis03@srlpl.in",
         "hr01@srlpl.in"
@@ -416,7 +416,7 @@ def send_all_zone_reports():
 
     if len(south_df) > 0:
         send_email_report(
-            to_emails=["operations06@srlpl.in"],
+            to_emails=["operations07@srlpl.in"],
             cc_emails=cc_emails,
             pending_df=south_df,
             zone_name="South"
