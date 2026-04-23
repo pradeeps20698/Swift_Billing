@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Email Report for Pending POD (POD Not Received) - Vehicle Group Based
-Sends reports filtered by vehicle groups (Vishal, Gopi, Jagdish, Praveen)
+Sends reports filtered by vehicle groups loaded from fleet_manager_mapping table.
+Update fleet_manager_mapping table in database to change vehicle-to-manager assignments.
 """
 
 import smtplib
@@ -22,68 +23,13 @@ try:
 except ImportError:
     pass
 
-# Vehicle Group Mappings
-VISHAL_VEHICLES = [
-    '0020 NL01AJ', '0167 NL01AH', '0219 NL01AH', '0283 NL01AH', '0523 GJ08AU',
-    '0536 GJ08AU', '0570 GJ08AU', '0572 GJ08AU', '0639 GJ08AU', '0699 GJ08AU',
-    '1797 PB11BR', '2081NL01AJ', '2082NL01AJ', '2083NL01AJ', '2084NL01AJ',
-    '2209NL01AJ', '2625 NL01AG', '3137 NL01AG', '4061 NL01N', '4062 NL01N',
-    '4064 NL01N', '4066 NL01N', '4067 NL01N', '4079 NL01AG', '4385 NL01AJ',
-    '4387 NL01AJ', '4389 NL01AJ', '4521 NL01AH', '4522 NL01AH', '4523 NL01AH',
-    '4524 NL01AH', '4525 NL01AH', '4526 NL01AH', '4527 NL01AH', '4528 NL01AH',
-    '4529 NL01AH', '4530 NL01AH', '7178NL01AJ', '7225 NL01AF', '8314 NL01AG',
-    '9392 NL01AH', '9450 NL01L', '9455 NL01L', '9457 NL01L', '9458 NL01L',
-    '9566 NL01AH', '9889 NL01AF', '9890 NL01AF', '9891 NL01AF', '9991 NL01AG',
-    'HR55AM 1370', '2623 NL01AG'
-]
-
-GOPI_VEHICLES = [
-    '0218 NL01AH', '0628 GJ08AU', '0740 GJ08AU', '0863 GJ08AU', '0908 GJ08AU',
-    '0951 GJ08AU', '0983 GJ08AU', '0986 GJ08AU', '1107 NL01AH', '1108 NL01AH',
-    '1109 NL01AH', '1110 NL01AH', '1111 NL01AH', '1112 NL01AH', '1113 NL01AH',
-    '1114 NL01AH', '1115 NL01AH', '2210NL01AJ', '2211NL01AJ', '2396 NL01N',
-    '2397 NL01N', '2398 NL01N', '2399 NL01N', '2400 NL01N', '3431 NL01AG',
-    '3432 NL01AG', '3433 NL01AG', '3748 HR55AR', '3906 NL01N', '3907 NL01N',
-    '3908 NL01N', '3909 NL01N', '3910 NL01N', '4065 NL01N', '4068 NL01N',
-    '4069 NL01N', '4388 NL01AJ', '4390 NL01AJ', '4531 HR55AR', '4531 NL01AH',
-    '4532 NL01AH', '4533 NL01AH', '4534 NL01AH', '4535 NL01AH', '4536 NL01AH',
-    '4537 NL01AH', '4538 NL01AH', '4539 NL01AH', '5825NL01AJ', '5826NL01AJ',
-    '5827NL01AJ', '5828NL01AJ', '6158 HR55AQ', '6429 HR55AQ', '6456NL01AJ',
-    '6457NL01AJ', '6458NL01AJ', '6459NL01AJ', '6460NL01AJ', '6469 HR55AQ',
-    '6484HR55AQ', '7175NL01AJ', '7176 NL01AJ', '7177NL01AJ', '7220 NL01AF',
-    '7222 NL01AF', '7223 NL01AF', '7224 NL01AF', '7226 NL01AF', '8204 NL01AH',
-    '8224 HR55AQ', '8315 NL01AG', '8450 HR55AQ', '8593 HR55AR', '8597 HR55AR',
-    '8739 HR55AQ', '8752 HR55AR', '8795 HR55AR', '9452 NL01L', '9460 NL01L',
-    '9494 HR55AQ'
-]
-
-JAGDISH_VEHICLES = [
-    '0284 NL01AH', '0285 NL01AH', '0286 NL01AH', '0722 GJ08AU', '0739 GJ08AU',
-    '0764 GJ08AU', '0814 GJ08AU', '0815 GJ08AU', '0816 GJ08AU', '0824 GJ08AU',
-    '4063 NL01N', '8630 NL01AG', '9451NL01L', 'NL01Q 8157', 'HR55AP 1974',
-    'HR55AM 2340', 'HR55AM 9667', 'HR55AM 0907', 'HR55AM 8703', 'HR55AN 5406',
-    'HR55AN 5307', 'HR55AM 4278', 'HR55AM 6059', 'NL01Q8150', 'NL01Q9547',
-    '3136 NL01AG', '2624 NL01AG'
-]
-
-PRAVEEN_VEHICLES = [
-    '0959 HR55AQ', '1171 HR55AR', '1564 HR55AQ', '1652 NL01AH', '1741 HR55AR',
-    '2206NL01AJ', '2207NL01AJ', '2208NL01AJ',
-    '2829 HR55AR', '2885 HR55AQ', '2942 HR55AQ', '3135 NL01AG',
-    '4078 NL01AG', '4080 NL01AG', '4149 HR55AQ', '4180 HR55AQ', '4274 HR55AR',
-    '4540 NL01AH', '4849 NL01AH', '4850 NL01AH', '4851 NL01AH', '4852 NL01AH',
-    '4853 NL01AH', '4854 NL01AH', '4855 NL01AH', '4856 NL01AH', '4857 NL01AH',
-    '4858 NL01AH', '5077 HR55AQ', '5305 NL01N', '5306 NL01N', '5307 NL01N',
-    '5309 NL01N', '5417 HR55AQ', '5495 HR55AR', '5578 HR55AR', '5709 HR55AR',
-    '5819NL01AJ', '5820NL01AJ', '5821NL01AJ', '5822NL01AJ', '5823NL01AJ',
-    '5824 HR55AQ', '5824NL01AJ', '6017 HR55AR', '7169NL01AJ', '7170NL01AJ',
-    '7171NL01AJ', '7172NL01AJ', '7173NL01AJ', '7174NL01AJ', '7219 NL01AF',
-    '7221 NL01AF', '7521 NL01N', '7522 NL01N', '7523 NL01N', '7524 NL01N',
-    '7525 NL01N', '7526 NL01N', '7527 NL01N', '7528 NL01N', '7529 NL01N',
-    '7530 NL01N', '7553 HR55AR', '7745 HR55AR', '8008 HR55AR', '8078 HR55AR',
-    '8193 NL01AH', '9080 HR55AQ', '9104 HR55AR', '9244 HR55AQ', '9256 HR55AQ',
-    '9453 NL01L', '9454 NL01L', '9456 NL01L', '9702 HR55AR', '9851 NL01AH'
-]
+# Fleet Manager to Email mapping
+FLEET_MANAGER_EMAILS = {
+    'VISHAL': 'operations05@srlpl.in',
+    'GOPI': 'tracking@srlpl.in',
+    'JAGDISH': 'operations03@srlpl.in',
+    'PRAVEEN': 'operations08@srlpl.in',
+}
 
 def get_config(key):
     return os.getenv(key)
@@ -96,6 +42,25 @@ def get_connection():
         database=get_config("DB_NAME"),
         port=get_config("DB_PORT") or 5432
     )
+
+def load_fleet_manager_mapping():
+    """Load fleet manager to vehicle mapping from database"""
+    conn = get_connection()
+    query = "SELECT vehicle_no, fleet_manager FROM fleet_manager_mapping"
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    # Build dict: {fleet_manager: [list of normalized vehicle_nos]}
+    mapping = {}
+    for _, row in df.iterrows():
+        manager = row['fleet_manager'].upper().strip()
+        vehicle = normalize_vehicle_no(row['vehicle_no'])
+        if manager not in mapping:
+            mapping[manager] = []
+        mapping[manager].append(vehicle)
+
+    print(f"Loaded fleet manager mapping: {', '.join(f'{k}={len(v)} vehicles' for k, v in mapping.items())}")
+    return mapping
 
 def load_pending_pod_data():
     """Load pending POD data (POD not received) from database"""
@@ -133,48 +98,26 @@ def normalize_vehicle_no(vehicle_no):
         return ''
     return vehicle_no.upper().strip().replace(' ', '')
 
-def get_group_for_vehicle(vehicle_no):
-    """Determine group for a vehicle"""
+def get_group_for_vehicle(vehicle_no, fleet_mapping):
+    """Determine group for a vehicle using DB mapping"""
     if not vehicle_no:
         return None
 
     vehicle_normalized = normalize_vehicle_no(vehicle_no)
 
-    for v in VISHAL_VEHICLES:
-        if normalize_vehicle_no(v) == vehicle_normalized:
-            return 'VISHAL'
-
-    for v in GOPI_VEHICLES:
-        if normalize_vehicle_no(v) == vehicle_normalized:
-            return 'GOPI'
-
-    for v in JAGDISH_VEHICLES:
-        if normalize_vehicle_no(v) == vehicle_normalized:
-            return 'JAGDISH'
-
-    for v in PRAVEEN_VEHICLES:
-        if normalize_vehicle_no(v) == vehicle_normalized:
-            return 'PRAVEEN'
+    for manager, vehicles in fleet_mapping.items():
+        if vehicle_normalized in vehicles:
+            return manager
 
     return None
 
-def filter_by_vehicle_group(df, group_name):
-    """Filter dataframe by vehicle group"""
-    if group_name == 'VISHAL':
-        vehicle_list = VISHAL_VEHICLES
-    elif group_name == 'GOPI':
-        vehicle_list = GOPI_VEHICLES
-    elif group_name == 'JAGDISH':
-        vehicle_list = JAGDISH_VEHICLES
-    elif group_name == 'PRAVEEN':
-        vehicle_list = PRAVEEN_VEHICLES
-    else:
+def filter_by_vehicle_group(df, group_name, fleet_mapping):
+    """Filter dataframe by vehicle group using DB mapping"""
+    normalized_list = fleet_mapping.get(group_name, [])
+    if not normalized_list:
         return pd.DataFrame()
 
-    # Normalize vehicle numbers for comparison
-    normalized_list = [normalize_vehicle_no(v) for v in vehicle_list]
     df['vehicle_normalized'] = df['vehicle_no'].apply(normalize_vehicle_no)
-
     filtered = df[df['vehicle_normalized'].isin(normalized_list)].copy()
     filtered = filtered.drop(columns=['vehicle_normalized'])
 
@@ -405,12 +348,16 @@ def send_all_vehicle_reports():
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
+    # Load fleet manager mapping from database
+    print("\nLoading fleet manager mapping from database...")
+    fleet_mapping = load_fleet_manager_mapping()
+
     # Load pending POD data
     print("\nLoading pending POD data...")
     pending_df = load_pending_pod_data()
     print(f"Total pending POD CNs: {len(pending_df)}")
 
-    # Common CC recipients (different from zone emails)
+    # Common CC recipients
     cc_emails = [
         "shyam.wadhwa@srlpl.in",
         "rg@srlpl.in",
@@ -418,77 +365,28 @@ def send_all_vehicle_reports():
         "hr01@srlpl.in"
     ]
 
-    # ========== MAIL 6: VISHAL ==========
-    print("\n" + "-" * 50)
-    print("MAIL 6: VISHAL")
-    print("-" * 50)
+    # Send reports for each fleet manager from DB mapping
+    for manager_name in sorted(fleet_mapping.keys()):
+        print("\n" + "-" * 50)
+        print(f"MAIL: {manager_name}")
+        print("-" * 50)
 
-    vishal_df = filter_by_vehicle_group(pending_df, 'VISHAL')
-    print(f"VISHAL CNs: {len(vishal_df)}")
+        manager_df = filter_by_vehicle_group(pending_df, manager_name, fleet_mapping)
+        print(f"{manager_name} CNs: {len(manager_df)}")
 
-    if len(vishal_df) > 0:
-        send_email_report(
-            to_emails=["operations05@srlpl.in"],
-            cc_emails=cc_emails,
-            pending_df=vishal_df,
-            group_name="VISHAL"
-        )
-    else:
-        print("No data to send for VISHAL")
-
-    # ========== MAIL 7: GOPI ==========
-    print("\n" + "-" * 50)
-    print("MAIL 7: GOPI")
-    print("-" * 50)
-
-    gopi_df = filter_by_vehicle_group(pending_df, 'GOPI')
-    print(f"GOPI CNs: {len(gopi_df)}")
-
-    if len(gopi_df) > 0:
-        send_email_report(
-            to_emails=["tracking@srlpl.in"],
-            cc_emails=cc_emails,
-            pending_df=gopi_df,
-            group_name="GOPI"
-        )
-    else:
-        print("No data to send for GOPI")
-
-    # ========== MAIL 8: JAGDISH ==========
-    print("\n" + "-" * 50)
-    print("MAIL 8: JAGDISH")
-    print("-" * 50)
-
-    jagdish_df = filter_by_vehicle_group(pending_df, 'JAGDISH')
-    print(f"JAGDISH CNs: {len(jagdish_df)}")
-
-    if len(jagdish_df) > 0:
-        send_email_report(
-            to_emails=["operations03@srlpl.in"],
-            cc_emails=cc_emails,
-            pending_df=jagdish_df,
-            group_name="JAGDISH"
-        )
-    else:
-        print("No data to send for JAGDISH")
-
-    # ========== MAIL 9: PRAVEEN ==========
-    print("\n" + "-" * 50)
-    print("MAIL 9: PRAVEEN")
-    print("-" * 50)
-
-    praveen_df = filter_by_vehicle_group(pending_df, 'PRAVEEN')
-    print(f"PRAVEEN CNs: {len(praveen_df)}")
-
-    if len(praveen_df) > 0:
-        send_email_report(
-            to_emails=["operations08@srlpl.in"],
-            cc_emails=cc_emails,
-            pending_df=praveen_df,
-            group_name="PRAVEEN"
-        )
-    else:
-        print("No data to send for PRAVEEN")
+        if len(manager_df) > 0:
+            to_email = FLEET_MANAGER_EMAILS.get(manager_name)
+            if not to_email:
+                print(f"WARNING: No email configured for {manager_name} in FLEET_MANAGER_EMAILS. Skipping.")
+                continue
+            send_email_report(
+                to_emails=[to_email],
+                cc_emails=cc_emails,
+                pending_df=manager_df,
+                group_name=manager_name
+            )
+        else:
+            print(f"No data to send for {manager_name}")
 
     print("\n" + "=" * 60)
     print("All vehicle group reports processed!")
@@ -501,6 +399,10 @@ def send_test_reports():
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
+    # Load fleet manager mapping from database
+    print("\nLoading fleet manager mapping from database...")
+    fleet_mapping = load_fleet_manager_mapping()
+
     # Load pending POD data
     print("\nLoading pending POD data...")
     pending_df = load_pending_pod_data()
@@ -508,77 +410,24 @@ def send_test_reports():
 
     test_email = "mis@srlpl.in"
 
-    # ========== MAIL 6: VISHAL ==========
-    print("\n" + "-" * 50)
-    print("MAIL 6: VISHAL (TEST)")
-    print("-" * 50)
+    # Send test reports for each fleet manager from DB mapping
+    for manager_name in sorted(fleet_mapping.keys()):
+        print("\n" + "-" * 50)
+        print(f"MAIL: {manager_name} (TEST)")
+        print("-" * 50)
 
-    vishal_df = filter_by_vehicle_group(pending_df, 'VISHAL')
-    print(f"VISHAL CNs: {len(vishal_df)}")
+        manager_df = filter_by_vehicle_group(pending_df, manager_name, fleet_mapping)
+        print(f"{manager_name} CNs: {len(manager_df)}")
 
-    if len(vishal_df) > 0:
-        send_email_report(
-            to_emails=[test_email],
-            cc_emails=None,
-            pending_df=vishal_df,
-            group_name="VISHAL"
-        )
-    else:
-        print("No data to send for VISHAL")
-
-    # ========== MAIL 7: GOPI ==========
-    print("\n" + "-" * 50)
-    print("MAIL 7: GOPI (TEST)")
-    print("-" * 50)
-
-    gopi_df = filter_by_vehicle_group(pending_df, 'GOPI')
-    print(f"GOPI CNs: {len(gopi_df)}")
-
-    if len(gopi_df) > 0:
-        send_email_report(
-            to_emails=[test_email],
-            cc_emails=None,
-            pending_df=gopi_df,
-            group_name="GOPI"
-        )
-    else:
-        print("No data to send for GOPI")
-
-    # ========== MAIL 8: JAGDISH ==========
-    print("\n" + "-" * 50)
-    print("MAIL 8: JAGDISH (TEST)")
-    print("-" * 50)
-
-    jagdish_df = filter_by_vehicle_group(pending_df, 'JAGDISH')
-    print(f"JAGDISH CNs: {len(jagdish_df)}")
-
-    if len(jagdish_df) > 0:
-        send_email_report(
-            to_emails=[test_email],
-            cc_emails=None,
-            pending_df=jagdish_df,
-            group_name="JAGDISH"
-        )
-    else:
-        print("No data to send for JAGDISH")
-
-    # ========== MAIL 9: PRAVEEN ==========
-    print("\n" + "-" * 50)
-    print("MAIL 9: PRAVEEN (TEST)")
-    print("-" * 50)
-
-    praveen_df = filter_by_vehicle_group(pending_df, 'PRAVEEN')
-    print(f"PRAVEEN CNs: {len(praveen_df)}")
-
-    if len(praveen_df) > 0:
-        send_email_report(
-            to_emails=[test_email],
-            cc_emails=None,
-            pending_df=praveen_df,
-            group_name="PRAVEEN"
-        )
-    else:
-        print("No data to send for PRAVEEN")
+        if len(manager_df) > 0:
+            send_email_report(
+                to_emails=[test_email],
+                cc_emails=None,
+                pending_df=manager_df,
+                group_name=manager_name
+            )
+        else:
+            print(f"No data to send for {manager_name}")
 
     print("\n" + "=" * 60)
     print("All TEST reports sent to mis@srlpl.in!")
