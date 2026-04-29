@@ -750,8 +750,8 @@ with tab1:
 
     if len(filtered_df) > 0:
         # Calculate Pooja and Rohit billing summaries
-        pooja_df = filtered_df[~filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
-        rohit_df = filtered_df[filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+        pooja_df = filtered_df[~filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
+        rohit_df = filtered_df[filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
 
         pooja_bills = pooja_df['bill_no'].nunique()
         pooja_amount = pooja_df['basic_freight'].sum()
@@ -778,7 +778,7 @@ with tab1:
                         <div style="color: white; font-size: 28px; font-weight: bold;">₹{pooja_amount/100000:.2f}L</div>
                     </div>
                 </div>
-                <div style="color: #a78bfa; font-size: 10px; margin-top: 8px;">Excludes: Mahindra, John Deere</div>
+                <div style="color: #a78bfa; font-size: 10px; margin-top: 8px;">Excludes: Mahindra, John Deere, Saera</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -796,7 +796,7 @@ with tab1:
                         <div style="color: white; font-size: 28px; font-weight: bold;">₹{rohit_amount/100000:.2f}L</div>
                     </div>
                 </div>
-                <div style="color: #67e8f9; font-size: 10px; margin-top: 8px;">Includes: Mahindra, John Deere</div>
+                <div style="color: #67e8f9; font-size: 10px; margin-top: 8px;">Includes: Mahindra, John Deere, Saera</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -817,6 +817,8 @@ with tab1:
                 return 'Skoda VW'
             elif 'john deere' in party_lower:
                 return 'John Deere'
+            elif 'saera' in party_lower:
+                return 'Saera'
             elif 'valuedrive' in party_lower or 'spinny' in party_lower:
                 return 'ValueDrive'
             else:
@@ -845,7 +847,7 @@ with tab1:
         single_parties = []  # Collect single parties to show at bottom
 
         # First: Groups with multiple parties (show subtotals)
-        group_order = ['Honda', 'M & M', 'Toyota', 'Glovis', 'Tata', 'Skoda VW', 'John Deere', 'ValueDrive']
+        group_order = ['Honda', 'M & M', 'Toyota', 'Glovis', 'Tata', 'Skoda VW', 'John Deere', 'Saera', 'ValueDrive']
 
         for group in group_order:
             group_data = client_summary[client_summary['Group'] == group].sort_values('Basic Freight', ascending=False)
@@ -1322,8 +1324,8 @@ with tab2:
     st.markdown("<div class='section-header'>Monthly Billing Trend</div>", unsafe_allow_html=True)
 
     # Split data into Pooja and Rohit categories
-    pooja_data = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
-    rohit_data = df[df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+    pooja_data = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
+    rohit_data = df[df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
 
     # For John Deere India Private Limited, use basic_freight + other_charges
     df['trend_amount'] = df.apply(
@@ -1332,8 +1334,8 @@ with tab2:
         else row['basic_freight'],
         axis=1
     )
-    pooja_data_trend = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
-    rohit_data_trend = df[df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+    pooja_data_trend = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
+    rohit_data_trend = df[df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
 
     # Total monthly trend
     monthly_trend = df.groupby('month').agg({
@@ -1461,8 +1463,8 @@ with tab2:
         )
 
         # Split into Pooja and Rohit
-        daywise_pooja = daywise_df[~daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
-        daywise_rohit = daywise_df[daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere', na=False)]
+        daywise_pooja = daywise_df[~daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
+        daywise_rohit = daywise_df[daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
 
         # Group by day for Pooja
         pooja_daily = daywise_pooja.groupby('bill_day').agg({'day_amount': 'sum'}).reset_index()
