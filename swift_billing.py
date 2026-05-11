@@ -443,17 +443,27 @@ st.markdown("""
 # Database connection
 @st.cache_resource
 def get_connection():
-    return psycopg2.connect(
+    conn = psycopg2.connect(
         host=get_config("DB_HOST"),
         user=get_config("DB_USER"),
         password=get_config("DB_PASSWORD"),
         database=get_config("DB_NAME"),
         port=get_config("DB_PORT") or 5432
     )
+    return conn
+
+def get_valid_connection():
+    conn = get_connection()
+    try:
+        conn.cursor().execute("SELECT 1")
+    except (psycopg2.InterfaceError, psycopg2.OperationalError):
+        st.cache_resource.clear()
+        conn = get_connection()
+    return conn
 
 # Load data function
 def load_data():
-    conn = get_connection()
+    conn = get_valid_connection()
     query = """
         SELECT
             cn_no, cn_date, branch, state, billing_party, bill_no, bill_date,
@@ -480,7 +490,7 @@ def load_data():
 
 # Get last API update time from database
 def get_db_last_update():
-    conn = get_connection()
+    conn = get_valid_connection()
     query = "SELECT MAX(updated_at) FROM cn_data WHERE (is_active = true OR is_active::text = 'Yes')"
     result = pd.read_sql(query, conn)
     last_update = result.iloc[0, 0]
