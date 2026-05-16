@@ -25,10 +25,10 @@ except ImportError:
 
 # Fleet Manager to Email mapping
 FLEET_MANAGER_EMAILS = {
-    'VISHAL': 'operations05@srlpl.in',
     'GOPI': 'tracking@srlpl.in',
     'JAGDISH': 'operations03@srlpl.in',
     'PRAVEEN': 'operations08@srlpl.in',
+    'CHANCHAL': 'tracking01@srlpl.in',
 }
 
 def get_config(key):
