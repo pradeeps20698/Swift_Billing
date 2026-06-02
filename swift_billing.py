@@ -972,6 +972,26 @@ with tab1:
         html_table += "</tbody></table></div>"
 
         st.markdown(html_table, unsafe_allow_html=True)
+
+        # CN-wise download button for billed data
+        billed_download_df = filtered_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'bill_no', 'bill_date', 'route', 'vehicle_no', 'qty', 'basic_freight']].copy()
+        # For John Deere, include other_charges in amount
+        jd_mask = billed_download_df['billing_party'] == 'John Deere India Private Limited'
+        billed_download_df['billed_amount'] = billed_download_df['basic_freight']
+        billed_download_df.loc[jd_mask, 'billed_amount'] = billed_download_df.loc[jd_mask, 'basic_freight'] + filtered_df.loc[jd_mask, 'other_charges'].fillna(0)
+        billed_download_df = billed_download_df.drop(columns=['basic_freight'])
+        billed_download_df.columns = ['CN No', 'CN Date', 'Branch', 'Billing Party', 'Bill No', 'Bill Date', 'Route', 'Vehicle No', 'Qty', 'Billed Amount']
+        billed_download_df['CN Date'] = billed_download_df['CN Date'].dt.strftime('%d-%m-%Y')
+        billed_download_df['Bill Date'] = billed_download_df['Bill Date'].dt.strftime('%d-%m-%Y')
+        billed_download_df = billed_download_df.sort_values(['Billing Party', 'CN Date'], ascending=[True, False])
+
+        billed_csv = billed_download_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download CN-wise Billed Data",
+            data=billed_csv,
+            file_name=f"billed_cn_data_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
     else:
         st.info("No data found for the selected filters.")
 
