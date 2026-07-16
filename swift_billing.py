@@ -760,8 +760,8 @@ with tab1:
 
     if len(filtered_df) > 0:
         # Calculate Pooja and Rohit billing summaries
-        pooja_df = filtered_df[~filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
-        rohit_df = filtered_df[filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
+        pooja_df = filtered_df[~filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera|kubota', na=False)]
+        rohit_df = filtered_df[filtered_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera|kubota', na=False)]
 
         pooja_bills = pooja_df['bill_no'].nunique()
         pooja_amount = pooja_df['basic_freight'].sum()
@@ -1356,8 +1356,8 @@ with tab2:
     st.markdown("<div class='section-header'>Monthly Billing Trend</div>", unsafe_allow_html=True)
 
     # Split data into Pooja and Rohit categories
-    pooja_data = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
-    rohit_data = df[df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
+    pooja_data = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere|saera|kubota', na=False)]
+    rohit_data = df[df['billing_party'].str.lower().str.contains('mahindra|john deere|saera|kubota', na=False)]
 
     # For John Deere India Private Limited, use basic_freight + other_charges
     df['trend_amount'] = df.apply(
@@ -1366,8 +1366,8 @@ with tab2:
         else row['basic_freight'],
         axis=1
     )
-    pooja_data_trend = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
-    rohit_data_trend = df[df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
+    pooja_data_trend = df[~df['billing_party'].str.lower().str.contains('mahindra|john deere|saera|kubota', na=False)]
+    rohit_data_trend = df[df['billing_party'].str.lower().str.contains('mahindra|john deere|saera|kubota', na=False)]
 
     # Total monthly trend
     monthly_trend = df.groupby('month').agg({
@@ -1495,8 +1495,8 @@ with tab2:
         )
 
         # Split into Pooja and Rohit
-        daywise_pooja = daywise_df[~daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
-        daywise_rohit = daywise_df[daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera', na=False)]
+        daywise_pooja = daywise_df[~daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera|kubota', na=False)]
+        daywise_rohit = daywise_df[daywise_df['billing_party'].str.lower().str.contains('mahindra|john deere|saera|kubota', na=False)]
 
         # Group by day for Pooja
         pooja_daily = daywise_pooja.groupby('bill_day').agg({'day_amount': 'sum'}).reset_index()
