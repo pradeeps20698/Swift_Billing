@@ -1043,7 +1043,7 @@ with tab3:
 
     with col2:
         valid_months = unbilled_df[unbilled_df['cn_month'].notna()]['cn_month'].unique()
-        months_sorted = sorted(valid_months, reverse=True)[:9]
+        months_sorted = sorted(valid_months, reverse=True)
 
         if len(unbilled_df) > 0:
             # Define parent company groupings (same as Client-Wise Summary)
@@ -1240,11 +1240,13 @@ with tab3:
             def convert_df_to_csv(dataframe):
                 return dataframe.to_csv(index=False).encode('utf-8')
 
-            # Prepare CN-wise download data
+            # Prepare CN-wise download data - all unbilled records
             download_df = unbilled_df[['cn_no', 'cn_date', 'branch', 'billing_party', 'route', 'vehicle_no', 'qty', 'basic_freight', 'pod_receipt_no']].copy()
             download_df.columns = ['CN No', 'CN Date', 'Branch', 'Billing Party', 'Route', 'Vehicle No', 'Qty', 'Basic Freight', 'POD Receipt No']
-            download_df['CN Date'] = download_df['CN Date'].dt.strftime('%d-%m-%Y')
+            # Sort by the real date (newest first) BEFORE formatting to text,
+            # otherwise a string sort orders by day-of-month and jumbles the dates.
             download_df = download_df.sort_values(['Billing Party', 'CN Date'], ascending=[True, False])
+            download_df['CN Date'] = download_df['CN Date'].dt.strftime('%d-%m-%Y')
 
             csv = convert_df_to_csv(download_df)
             st.download_button(
