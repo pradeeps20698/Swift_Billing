@@ -788,7 +788,7 @@ with tab1:
                         <div style="color: white; font-size: 28px; font-weight: bold;">₹{pooja_amount/100000:.2f}L</div>
                     </div>
                 </div>
-                <div style="color: #a78bfa; font-size: 10px; margin-top: 8px;">Excludes: Mahindra, John Deere, Saera</div>
+                <div style="color: #a78bfa; font-size: 10px; margin-top: 8px;">Excludes: Mahindra, John Deere, Saera, Escorts Kubota</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -806,7 +806,7 @@ with tab1:
                         <div style="color: white; font-size: 28px; font-weight: bold;">₹{rohit_amount/100000:.2f}L</div>
                     </div>
                 </div>
-                <div style="color: #67e8f9; font-size: 10px; margin-top: 8px;">Includes: Mahindra, John Deere, Saera</div>
+                <div style="color: #67e8f9; font-size: 10px; margin-top: 8px;">Includes: Mahindra, John Deere, Saera, Escorts Kubota</div>
             </div>
             """, unsafe_allow_html=True)
 
