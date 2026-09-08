@@ -795,7 +795,7 @@ with tab1:
         with col_rohit:
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                <div style="color: #cffafe; font-size: 14px; font-weight: 600; margin-bottom: 8px;">👨 Rohit Sir Billed</div>
+                <div style="color: #cffafe; font-size: 14px; font-weight: 600; margin-bottom: 8px;">👩 Aayushi Ma'am Billed</div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="text-align: center;">
                         <div style="color: #a5f3fc; font-size: 12px;">No of Bills</div>
@@ -1387,7 +1387,7 @@ with tab2:
     pooja_trend['month'] = pooja_trend['month'].astype(str)
     pooja_trend.columns = ['Month', 'No of Bills', 'Units', 'Billed Amount']
 
-    # Rohit Sir monthly trend
+    # Aayushi Ma'am monthly trend
     rohit_trend = rohit_data_trend.groupby('month').agg({
         'bill_no': lambda x: x.dropna().nunique(),
         'qty': 'sum',
@@ -1403,11 +1403,11 @@ with tab2:
     pooja_chart.columns = ['Pooja Ma\'am']
 
     rohit_chart = rohit_trend.set_index('Month')[['Billed Amount']].tail(6)
-    rohit_chart.columns = ['Rohit Sir']
+    rohit_chart.columns = ['Aayushi Ma\'am']
 
     # Merge Pooja and Rohit data into one dataframe
     combined_chart = pooja_chart.join(rohit_chart, how='outer').fillna(0)
-    combined_chart['Total'] = combined_chart['Pooja Ma\'am'] + combined_chart['Rohit Sir']
+    combined_chart['Total'] = combined_chart['Pooja Ma\'am'] + combined_chart['Aayushi Ma\'am']
     combined_chart = combined_chart.reset_index()
 
     # Create labels in Lakhs
@@ -1416,7 +1416,7 @@ with tab2:
     # Melt data for stacked bar chart
     chart_data = combined_chart.melt(
         id_vars=['Month', 'Total', 'Total_Label'],
-        value_vars=['Rohit Sir', 'Pooja Ma\'am'],
+        value_vars=['Aayushi Ma\'am', 'Pooja Ma\'am'],
         var_name='Category',
         value_name='Amount'
     )
@@ -1427,7 +1427,7 @@ with tab2:
         x=alt.X('Month:N', sort=None, title='Month', axis=alt.Axis(labelAngle=0)),
         y=alt.Y('Amount:Q', title='Billed Amount', stack='zero'),
         color=alt.Color('Category:N', scale=alt.Scale(
-            domain=['Pooja Ma\'am', 'Rohit Sir'],
+            domain=['Pooja Ma\'am', 'Aayushi Ma\'am'],
             range=['#a855f7', '#06b6d4']
         ), legend=alt.Legend(title='Category', orient='top')),
         order=alt.Order('Category:N', sort='descending')
@@ -1504,7 +1504,7 @@ with tab2:
 
         # Group by day for Rohit (includes John Deere with other_charges)
         rohit_daily = daywise_rohit.groupby('bill_day').agg({'day_amount': 'sum'}).reset_index()
-        rohit_daily.columns = ['Day', 'Rohit Sir']
+        rohit_daily.columns = ['Day', 'Aayushi Ma\'am']
 
         # Get the actual number of days in the month
         import calendar
@@ -1517,7 +1517,7 @@ with tab2:
         # Fill missing days with 0
         all_days = pd.DataFrame({'Day': range(1, max_day + 1)})
         daily_combined = all_days.merge(pooja_daily, on='Day', how='left').merge(rohit_daily, on='Day', how='left').fillna(0)
-        daily_combined['Total'] = daily_combined['Pooja Ma\'am'] + daily_combined['Rohit Sir']
+        daily_combined['Total'] = daily_combined['Pooja Ma\'am'] + daily_combined['Aayushi Ma\'am']
 
         # Filter out days with no billing
         daily_combined = daily_combined[daily_combined['Total'] > 0]
@@ -1528,7 +1528,7 @@ with tab2:
         # Melt data for stacked bar chart
         daily_chart_data = daily_combined.melt(
             id_vars=['Day', 'Total', 'Total_Label'],
-            value_vars=['Rohit Sir', 'Pooja Ma\'am'],
+            value_vars=['Aayushi Ma\'am', 'Pooja Ma\'am'],
             var_name='Category',
             value_name='Amount'
         )
@@ -1539,7 +1539,7 @@ with tab2:
             x=alt.X('Day:N', sort=None, title='Day', axis=alt.Axis(labelAngle=0)),
             y=alt.Y('Amount:Q', title='Billed Amount', stack='zero'),
             color=alt.Color('Category:N', scale=alt.Scale(
-                domain=['Pooja Ma\'am', 'Rohit Sir'],
+                domain=['Pooja Ma\'am', 'Aayushi Ma\'am'],
                 range=['#a855f7', '#06b6d4']
             ), legend=alt.Legend(title='Category', orient='top')),
             order=alt.Order('Category:N', sort='descending')
@@ -1577,7 +1577,7 @@ with tab2:
         # Show summary metrics for the selected month
         total_daywise = daily_combined['Total'].sum()
         total_pooja = daily_combined['Pooja Ma\'am'].sum()
-        total_rohit = daily_combined['Rohit Sir'].sum()
+        total_rohit = daily_combined['Aayushi Ma\'am'].sum()
         days_with_billing = len(daily_combined)
 
         col1, col2, col3, col4 = st.columns(4)
@@ -1586,7 +1586,7 @@ with tab2:
         with col2:
             st.metric("Pooja Ma'am", f"₹{total_pooja/100000:.2f}L")
         with col3:
-            st.metric("Rohit Sir", f"₹{total_rohit/100000:.2f}L")
+            st.metric("Aayushi Ma'am", f"₹{total_rohit/100000:.2f}L")
         with col4:
             st.metric("Days with Billing", f"{days_with_billing}")
 
