@@ -1534,6 +1534,14 @@ with tab2:
         )
         daily_chart_data['Label'] = daily_chart_data['Amount'].apply(lambda x: f"₹{x/100000:.1f}L" if x > 0 else '')
 
+        # Compute the vertical center of each segment so labels sit in the middle
+        # of their colored block (stack order: Pooja bottom, Aayushi on top)
+        stack_order = {'Pooja Ma\'am': 0, 'Aayushi Ma\'am': 1}
+        daily_chart_data['_order'] = daily_chart_data['Category'].map(stack_order)
+        daily_chart_data = daily_chart_data.sort_values(['Day', '_order'])
+        daily_chart_data['_cum'] = daily_chart_data.groupby('Day')['Amount'].cumsum()
+        daily_chart_data['Label_Y'] = daily_chart_data['_cum'] - daily_chart_data['Amount'] / 2
+
         # Create stacked bar chart with Altair
         day_bars = alt.Chart(daily_chart_data).mark_bar().encode(
             x=alt.X('Day:N', sort=None, title='Day', axis=alt.Axis(labelAngle=0)),
@@ -1569,10 +1577,9 @@ with tab2:
             fontWeight='bold'
         ).encode(
             x=alt.X('Day:N', sort=None),
-            y=alt.Y('Amount:Q', stack='zero'),
+            y=alt.Y('Label_Y:Q'),
             detail='Category:N',
-            text='Label:N',
-            order=alt.Order('Category:N', sort='descending')
+            text='Label:N'
         )
 
         # Combine chart and labels
