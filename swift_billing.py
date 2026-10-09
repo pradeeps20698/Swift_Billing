@@ -1538,13 +1538,17 @@ with tab2:
         # of their colored block (stack order: Pooja bottom, Aayushi on top)
         stack_order = {'Pooja Ma\'am': 0, 'Aayushi Ma\'am': 1}
         daily_chart_data['_order'] = daily_chart_data['Category'].map(stack_order)
-        daily_chart_data = daily_chart_data.sort_values(['Day', '_order'])
-        daily_chart_data['_cum'] = daily_chart_data.groupby('Day')['Amount'].cumsum()
+        daily_chart_data['_day_num'] = daily_chart_data['Day'].astype(int)
+        daily_chart_data = daily_chart_data.sort_values(['_day_num', '_order'])
+        daily_chart_data['_cum'] = daily_chart_data.groupby('_day_num')['Amount'].cumsum()
         daily_chart_data['Label_Y'] = daily_chart_data['_cum'] - daily_chart_data['Amount'] / 2
+
+        # Explicit day ordering (1..31) so the x-axis isn't sorted as strings
+        day_order = [str(d) for d in sorted(daily_chart_data['_day_num'].unique())]
 
         # Create stacked bar chart with Altair
         day_bars = alt.Chart(daily_chart_data).mark_bar().encode(
-            x=alt.X('Day:N', sort=None, title='Day', axis=alt.Axis(labelAngle=0)),
+            x=alt.X('Day:N', sort=day_order, title=f'Day ({selected_month_display})', axis=alt.Axis(labelAngle=0)),
             y=alt.Y('Amount:Q', title='Billed Amount', stack='zero'),
             color=alt.Color('Category:N', scale=alt.Scale(
                 domain=['Pooja Ma\'am', 'Aayushi Ma\'am'],
@@ -1563,7 +1567,7 @@ with tab2:
             fontSize=10,
             fontWeight='bold'
         ).encode(
-            x=alt.X('Day:N', sort=None),
+            x=alt.X('Day:N', sort=day_order),
             y=alt.Y('Total:Q'),
             text='Total_Label:N'
         )
@@ -1576,7 +1580,7 @@ with tab2:
             fontSize=9,
             fontWeight='bold'
         ).encode(
-            x=alt.X('Day:N', sort=None),
+            x=alt.X('Day:N', sort=day_order),
             y=alt.Y('Label_Y:Q'),
             detail='Category:N',
             text='Label:N'
