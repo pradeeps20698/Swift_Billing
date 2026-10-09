@@ -1560,8 +1560,23 @@ with tab2:
             text='Total_Label:N'
         )
 
+        # Add per-category value labels centered within each stacked segment
+        day_segment_text = alt.Chart(daily_chart_data).mark_text(
+            align='center',
+            baseline='middle',
+            color='white',
+            fontSize=9,
+            fontWeight='bold'
+        ).encode(
+            x=alt.X('Day:N', sort=None),
+            y=alt.Y('Amount:Q', stack='zero'),
+            detail='Category:N',
+            text='Label:N',
+            order=alt.Order('Category:N', sort='descending')
+        )
+
         # Combine chart and labels
-        day_final_chart = (day_bars + day_total_text).configure_axis(
+        day_final_chart = (day_bars + day_segment_text + day_total_text).configure_axis(
             labelColor='#e2e8f0',
             titleColor='#e2e8f0',
             gridColor='#1e3a5f'
