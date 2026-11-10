@@ -416,47 +416,21 @@ def send_all_reports():
         "mis@srlpl.in"
     ]
 
-    # ========== EMAIL 1: All parties EXCEPT Mahindra, John Deere, Saera, and Escorts Kubota ==========
+    # ========== EMAIL 1: All billing parties ==========
     print("\n" + "-" * 50)
-    print("EMAIL 1: All parties EXCEPT Mahindra, John Deere, Saera & Escorts Kubota")
+    print("EMAIL 1: All billing parties")
     print("-" * 50)
+    print(f"Filtered CNs: {len(unbilled_df)}")
 
-    filtered_df_1 = filter_data_by_parties(
-        unbilled_df,
-        exclude_parties=['mahindra', 'john deere', 'saera', 'kubota']
-    )
-    print(f"Filtered CNs: {len(filtered_df_1)}")
-
-    if len(filtered_df_1) > 0:
+    if len(unbilled_df) > 0:
         send_email_report(
             to_emails=["billing@srlpl.in"],
             cc_emails=cc_emails,
-            unbilled_df=filtered_df_1,
+            unbilled_df=unbilled_df,
             subject_suffix=""
         )
     else:
         print("No data to send for Email 1")
-
-    # ========== EMAIL 2: Only Mahindra, John Deere, Saera, and Escorts Kubota ==========
-    print("\n" + "-" * 50)
-    print("EMAIL 2: Only Mahindra, John Deere, Saera & Escorts Kubota")
-    print("-" * 50)
-
-    filtered_df_2 = filter_data_by_parties(
-        unbilled_df,
-        include_parties=['mahindra', 'john deere', 'saera', 'kubota']
-    )
-    print(f"Filtered CNs: {len(filtered_df_2)}")
-
-    if len(filtered_df_2) > 0:
-        send_email_report(
-            to_emails=["billingmahindra@gmail.com"],
-            cc_emails=cc_emails,
-            unbilled_df=filtered_df_2,
-            subject_suffix="Mahindra, John Deere, Saera & Escorts Kubota"
-        )
-    else:
-        print("No data to send for Email 2")
 
     print("\n" + "=" * 60)
     print("All reports processed!")
@@ -484,47 +458,21 @@ def send_reports_no_cc():
     unbilled_df = load_unbilled_data()
     print(f"Total unbilled CNs: {len(unbilled_df)}")
 
-    # ========== EMAIL 1: All parties EXCEPT Mahindra, John Deere, Saera, and Escorts Kubota ==========
+    # ========== EMAIL 1: All billing parties ==========
     print("\n" + "-" * 50)
-    print("EMAIL 1: All parties EXCEPT Mahindra, John Deere, Saera & Escorts Kubota")
+    print("EMAIL 1: All billing parties")
     print("-" * 50)
+    print(f"Filtered CNs: {len(unbilled_df)}")
 
-    filtered_df_1 = filter_data_by_parties(
-        unbilled_df,
-        exclude_parties=['mahindra', 'john deere', 'saera', 'kubota']
-    )
-    print(f"Filtered CNs: {len(filtered_df_1)}")
-
-    if len(filtered_df_1) > 0:
+    if len(unbilled_df) > 0:
         send_email_report(
             to_emails=["billing@srlpl.in"],
             cc_emails=None,
-            unbilled_df=filtered_df_1,
+            unbilled_df=unbilled_df,
             subject_suffix=""
         )
     else:
         print("No data to send for Email 1")
-
-    # ========== EMAIL 2: Only Mahindra, John Deere, Saera, and Escorts Kubota ==========
-    print("\n" + "-" * 50)
-    print("EMAIL 2: Only Mahindra, John Deere, Saera & Escorts Kubota")
-    print("-" * 50)
-
-    filtered_df_2 = filter_data_by_parties(
-        unbilled_df,
-        include_parties=['mahindra', 'john deere', 'saera', 'kubota']
-    )
-    print(f"Filtered CNs: {len(filtered_df_2)}")
-
-    if len(filtered_df_2) > 0:
-        send_email_report(
-            to_emails=["billingmahindra@gmail.com"],
-            cc_emails=None,
-            unbilled_df=filtered_df_2,
-            subject_suffix="Mahindra, John Deere, Saera & Escorts Kubota"
-        )
-    else:
-        print("No data to send for Email 2")
 
     print("\n" + "=" * 60)
     print("All reports sent (without CC)!")
