@@ -27,7 +27,8 @@ def get_connection():
         user=get_config("DB_USER"),
         password=get_config("DB_PASSWORD"),
         database=get_config("DB_NAME"),
-        port=get_config("DB_PORT") or 5432
+        port=get_config("DB_PORT") or 5432,
+        connect_timeout=30
     )
 
 def load_unbilled_data():
@@ -382,7 +383,7 @@ def send_email_report(to_emails, cc_emails, unbilled_df, subject_suffix=""):
         print(f"Sending email to: {', '.join(all_recipients)}")
         context = ssl.create_default_context()
 
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
+        with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
             server.starttls(context=context)
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, all_recipients, message.as_string())
