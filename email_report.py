@@ -1,6 +1,7 @@
 import smtplib
 import ssl
 import os
+import sys
 import pandas as pd
 import psycopg2
 from email.mime.text import MIMEText
@@ -402,6 +403,14 @@ def send_all_reports():
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
+    # Verify required email configuration up front (don't print secret values)
+    required = ["SENDER_EMAIL", "SENDER_PASSWORD", "DB_HOST", "DB_NAME"]
+    missing = [k for k in required if not get_config(k)]
+    if missing:
+        print(f"ERROR: Missing required configuration: {', '.join(missing)}")
+        print("Set these as GitHub Actions secrets (or in .env locally).")
+        sys.exit(1)
+
     # Load all unbilled data
     print("\nLoading unbilled CN data...")
     unbilled_df = load_unbilled_data()
@@ -424,12 +433,15 @@ def send_all_reports():
     print(f"Filtered CNs: {len(unbilled_df)}")
 
     if len(unbilled_df) > 0:
-        send_email_report(
+        ok = send_email_report(
             to_emails=["billing@srlpl.in"],
             cc_emails=cc_emails,
             unbilled_df=unbilled_df,
             subject_suffix=""
         )
+        if not ok:
+            print("ERROR: Email 1 was NOT sent. Failing the job so this is visible.")
+            sys.exit(1)
     else:
         print("No data to send for Email 1")
 
