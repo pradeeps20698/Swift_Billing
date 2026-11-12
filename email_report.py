@@ -60,7 +60,8 @@ def load_unbilled_data():
 
 def get_parent_group(party):
     """Get parent company group for a billing party"""
-    party_lower = party.lower() if party else ""
+    # Guard against NaN/float or other non-string values (blank billing_party)
+    party_lower = party.lower() if isinstance(party, str) else ""
     if 'honda' in party_lower:
         return 'Honda'
     elif 'mahindra' in party_lower or 'mstc' in party_lower:
