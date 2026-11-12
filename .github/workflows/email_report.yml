@@ -1,11 +1,8 @@
 name: Send Email Reports
 
 on:
-  schedule:
-    # Runs at 2:00 PM IST (8:30 AM UTC) on Tuesday and Friday
-    - cron: '30 8 * * 2,5'
-
-  # Allow manual trigger from GitHub Actions tab
+  # Scheduled trigger moved to unbilled_cn_report.yml ("Send Unbilled CN Report").
+  # This workflow no longer runs automatically; manual trigger only.
   workflow_dispatch:
 
 jobs:
